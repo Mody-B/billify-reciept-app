@@ -22,8 +22,8 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
   return (
     <section className="step-panel" aria-labelledby="people-title">
       <div className="step-copy">
-        <h2 id="people-title">Who is splitting?</h2>
-        <p>Add a name for each person. You can share any item across more than one of them.</p>
+        <h2 id="people-title">Who’s splitting?</h2>
+        <p>Type a name and tap Add. Then you’ll put items on them.</p>
       </div>
 
       <form
@@ -67,9 +67,6 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
       )}
 
       <div className="step-actions">
-        <button type="button" className="button secondary" onClick={onBack}>
-          Back
-        </button>
         <button
           type="button"
           className="button"
@@ -77,7 +74,10 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
           disabled={people.length === 0}
           onClick={onNext}
         >
-          Assign items
+          Next: assign items
+        </button>
+        <button type="button" className="text-button" onClick={onBack}>
+          Back
         </button>
       </div>
     </section>

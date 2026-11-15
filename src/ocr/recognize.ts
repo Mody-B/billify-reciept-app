@@ -1,71 +1,23 @@
-import { createWorker, PSM, type Worker } from "tesseract.js";
-import { parseReceipt, parseReceiptText, type ParsedReceipt } from "./parseReceipt";
+import { parseReceiptText, receiptFromVision, type ParsedReceipt } from "./parseReceipt";
 
 export type Recognition = ParsedReceipt & { rawText: string };
 
-type ProgressListener = (progress: number, status: string) => void;
-
-let workerPromise: Promise<Worker> | null = null;
-let progressListener: ProgressListener | null = null;
-
-function logger(message: { status?: string; progress?: number }) {
-  if (!progressListener || typeof message.progress !== "number") return;
-  progressListener(message.progress, message.status ?? "");
-}
-
-async function getWorker(): Promise<Worker> {
-  if (!workerPromise) {
-    const created = createWorker("eng", 1, { logger });
-    workerPromise = created;
-    try {
-      return await created;
-    } catch (error) {
-      workerPromise = null;
-      throw error;
-    }
-  }
-  return workerPromise;
-}
-
-async function resetWorker(): Promise<void> {
-  const pending = workerPromise;
-  workerPromise = null;
-  if (!pending) return;
-  try {
-    const worker = await pending;
-    await worker.terminate();
-  } catch {
-    // The failed worker is already unusable.
-  }
-}
-
-export async function preprocessImage(file: Blob): Promise<Blob> {
+export async function shrinkImage(file: Blob): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file);
-    const maxWidth = 1800;
+    const maxWidth = 1600;
     const scale = Math.min(1, maxWidth / bitmap.width);
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const context = canvas.getContext("2d");
     if (!context) return file;
     context.drawImage(bitmap, 0, 0, width, height);
-    const image = context.getImageData(0, 0, width, height);
-    const pixels = image.data;
-    for (let index = 0; index < pixels.length; index += 4) {
-      let tone = 0.299 * pixels[index] + 0.587 * pixels[index + 1] + 0.114 * pixels[index + 2];
-      tone = (tone - 128) * 1.4 + 128;
-      const next = Math.max(0, Math.min(255, tone));
-      pixels[index] = next;
-      pixels[index + 1] = next;
-      pixels[index + 2] = next;
-    }
-    context.putImageData(image, 0, 0);
     bitmap.close();
     const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/png");
+      canvas.toBlob(resolve, "image/jpeg", 0.82);
     });
     return blob ?? file;
   } catch {
@@ -73,57 +25,49 @@ export async function preprocessImage(file: Blob): Promise<Blob> {
   }
 }
 
-export async function recognizeReceipt(
-  image: Blob,
-  onProgress?: ProgressListener,
-): Promise<Recognition> {
-  progressListener = onProgress ?? null;
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("unreadable"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function recognizeReceipt(image: Blob): Promise<Recognition> {
+  const dataUrl = await blobToDataUrl(image);
+  let response: Response;
   try {
-    const worker = await getWorker();
-    await worker.setParameters({
-      tessedit_pageseg_mode: PSM.AUTO,
+    response = await fetch("/api/read-receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataUrl }),
     });
-    const result = await worker.recognize(image);
-    const words = (result.data.words ?? []).flatMap((word) => {
-      if (!word.bbox) return [];
-      return [
-        {
-          text: word.text,
-          x0: word.bbox.x0,
-          y0: word.bbox.y0,
-          x1: word.bbox.x1,
-          y1: word.bbox.y1,
-          confidence: word.confidence,
-        },
-      ];
-    });
-    const fromWords = parseReceipt(words);
-    const rawText = result.data.text ?? "";
-    const parsed =
-      fromWords.items.length === 0 && fromWords.totalCents == null && rawText.trim()
-        ? parseReceiptText(rawText)
-        : fromWords;
-    return { ...parsed, rawText };
-  } catch (error) {
-    await resetWorker();
-    throw error;
-  } finally {
-    progressListener = null;
+  } catch {
+    throw new Error("missing_key");
   }
+
+  if (response.status === 503) throw new Error("missing_key");
+  if (!response.ok) throw new Error("unreadable");
+
+  const body: unknown = await response.json();
+  const parsed = receiptFromVision(body);
+  if (!parsed) {
+    const transcript =
+      body && typeof body === "object" && "transcript" in body && typeof body.transcript === "string"
+        ? body.transcript
+        : "";
+    const fromText = transcript ? parseReceiptText(transcript) : null;
+    if (!fromText || fromText.items.length === 0) throw new Error("unreadable");
+    return { ...fromText, rawText: transcript };
+  }
+  return { ...parsed, rawText: "" };
 }
 
 export function friendlyReadError(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  if (/fetch|network|load|download|lang/i.test(message)) {
-    return "The reader needs a one-time download of its language files, and that download failed. You can enter the bill by hand.";
+  if (message === "missing_key") {
+    return "The receipt reader isn't set up on this copy yet. Add the lines yourself.";
   }
-  return "That photo couldn't be read. Blurry, dark, or skewed shots often do this. Enter the bill by hand, or try another photo.";
-}
-
-export function readingLabel(status: string): string {
-  const key = status.toLowerCase();
-  if (key.includes("load") || key.includes("download")) return "Downloading the reader";
-  if (key.includes("initial")) return "Getting the reader ready";
-  if (key.includes("recogn")) return "Reading the receipt";
-  return "Reading on this device";
+  return "That photo couldn't be read. Add the lines yourself.";
 }

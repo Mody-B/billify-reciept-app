@@ -19,8 +19,8 @@ export function SummaryStep({ symbol, items, people, result, onBack, onReset }: 
   return (
     <section className="step-panel" aria-labelledby="summary-title">
       <div className="step-copy">
-        <h2 id="summary-title">What each person pays</h2>
-        <p>Tax and every extra follow each person’s share of the items, rounded so the cents add up.</p>
+        <h2 id="summary-title">Who pays what</h2>
+        <p>Tax and fees follow each person’s share of the items.</p>
       </div>
 
       <div className="summary-grid">
@@ -101,11 +101,11 @@ export function SummaryStep({ symbol, items, people, result, onBack, onReset }: 
       </div>
 
       <div className="step-actions">
-        <button type="button" className="button secondary" onClick={onBack}>
-          Back
-        </button>
         <button type="button" className="button" onClick={onReset}>
           Start over
+        </button>
+        <button type="button" className="text-button" onClick={onBack}>
+          Back
         </button>
       </div>
     </section>

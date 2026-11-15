@@ -1,41 +1,24 @@
 type CaptureStepProps = {
-  photoUrl: string | null;
-  reading: { progress: number; status: string } | null;
-  error: string | null;
   onPick: (file: File) => void;
-  onCancelRead: () => void;
   onManual: () => void;
-  onSample: () => void;
 };
 
-export function CaptureStep({
-  photoUrl,
-  reading,
-  error,
-  onPick,
-  onCancelRead,
-  onManual,
-  onSample,
-}: CaptureStepProps) {
+export function CaptureStep({ onPick, onManual }: CaptureStepProps) {
   return (
     <section className="step-panel" aria-labelledby="capture-title">
       <div className="step-copy">
-        <h2 id="capture-title">Start from a receipt</h2>
-        <p>
-          Take a photo or upload one. Splitit reads it on this device, then you can fix anything it
-          missed. No account, no upload.
-        </p>
+        <h2 id="capture-title">Photograph the receipt</h2>
+        <p>Next you’ll check the lines, then split them.</p>
       </div>
-
       <div className="capture-actions">
         <button type="button" className="button" data-testid="capture-camera" onClick={() => document.getElementById("camera-input")?.click()}>
           Take photo
         </button>
         <button type="button" className="button secondary" data-testid="capture-upload" onClick={() => document.getElementById("upload-input")?.click()}>
-          Upload image
+          Upload a photo
         </button>
-        <button type="button" className="button secondary" data-testid="capture-manual" onClick={onManual}>
-          Enter by hand
+        <button type="button" className="text-button" data-testid="capture-manual" onClick={onManual}>
+          Type the items instead
         </button>
         <input
           id="camera-input"
@@ -62,41 +45,6 @@ export function CaptureStep({
             if (file) onPick(file);
           }}
         />
-      </div>
-
-      {photoUrl && (
-        <figure className="preview">
-          <img src={photoUrl} alt="Receipt you selected" />
-        </figure>
-      )}
-
-      {reading && (
-        <div className="reader" role="status" aria-live="polite">
-          <div className="reader-top">
-            <strong>{reading.status}</strong>
-            <span>{Math.round(reading.progress * 100)}%</span>
-          </div>
-          <div className="reader-track" aria-hidden="true">
-            <span style={{ width: `${Math.round(reading.progress * 100)}%` }} />
-          </div>
-          <p>The photo stays on this device. The first read downloads the English language files.</p>
-          <button type="button" className="button ghost" onClick={onCancelRead}>
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {error && (
-        <p className="flag" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className="sample-row">
-        <button type="button" className="text-button" data-testid="capture-sample" onClick={onSample}>
-          Try the diner sample
-        </button>
-        <p>A short bill with tax, service, and tip, so you can practice the split.</p>
       </div>
     </section>
   );

@@ -122,10 +122,7 @@ export function AssignStep({
     >
       <div className="step-copy">
         <h2 id="assign-title">Put each item on someone</h2>
-        <p id="assign-hint">
-          Drag the grip onto a person. Or tap an item, then a person — tap again to unshare. On a keyboard,
-          use the arrow keys and then 1–9.
-        </p>
+        <p id="assign-hint">Drag the grip onto a person, or tap an item and then a person. Tap again to remove them. Keys 1–9 work too.</p>
       </div>
       <p className="assign-status" role="status" aria-live="polite">
         {nudge || status}
@@ -214,11 +211,11 @@ export function AssignStep({
       </div>
 
       <div className="step-actions">
-        <button type="button" className="button secondary" onClick={onBack}>
-          Back
-        </button>
         <button type="button" className="button" data-testid="continue" onClick={onNext}>
-          See totals
+          Next: who pays what
+        </button>
+        <button type="button" className="text-button" onClick={onBack}>
+          Back
         </button>
       </div>
 

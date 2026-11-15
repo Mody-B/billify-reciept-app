@@ -5,11 +5,9 @@ import { PeopleStep } from "./components/PeopleStep";
 import { AssignStep } from "./components/AssignStep";
 import { SummaryStep } from "./components/SummaryStep";
 import { newId } from "./id";
-import { formatMoney } from "./money";
-import { friendlyReadError, preprocessImage, readingLabel, recognizeReceipt, type Recognition } from "./ocr/recognize";
-import { createSampleBill } from "./sampleBill";
+import { friendlyReadError, recognizeReceipt, shrinkImage, type Recognition } from "./ocr/recognize";
 import { splitBill } from "./split/splitBill";
-import { PERSON_COLORS, STEPS, type Extra, type Item, type Person, type StepId } from "./types";
+import { PERSON_COLORS, type Extra, type Item, type Person, type StepId } from "./types";
 
 function blankItem(): Item {
   return { id: newId(), name: "", quantity: 1, priceCents: 0, assignments: [], shareMode: "even" };
@@ -26,9 +24,8 @@ export default function App() {
   const [detectedTotalCents, setDetectedTotalCents] = useState<number | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [ocrText, setOcrText] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [reading, setReading] = useState<{ progress: number; status: string } | null>(null);
+  const [reading, setReading] = useState(false);
   const [readError, setReadError] = useState<string | null>(null);
   const requestRef = useRef(0);
 
@@ -62,7 +59,6 @@ export default function App() {
     [people, items, extras],
   );
 
-  const stepIndex = STEPS.findIndex((entry) => entry.id === step);
   const mark = symbol.trim() || "$";
 
   function rememberPhoto(file: File) {
@@ -95,7 +91,6 @@ export default function App() {
       })),
     );
     setDetectedTotalCents(parsed.totalCents);
-    setOcrText(parsed.rawText.trim() || null);
     if (parsed.currencySymbol) setSymbol(parsed.currencySymbol);
     setSelectedItemId(null);
   }
@@ -108,57 +103,33 @@ export default function App() {
     const request = ++requestRef.current;
     setReadError(null);
     rememberPhoto(file);
-    setReading({ progress: 0, status: "Starting" });
+    setReading(true);
+    setItems([]);
+    setStep("review");
     try {
-      const prepared = await preprocessImage(file);
+      const prepared = await shrinkImage(file);
       if (request !== requestRef.current) return;
-      const parsed = await recognizeReceipt(prepared, (progress, status) => {
-        if (request !== requestRef.current) return;
-        setReading({ progress, status: readingLabel(status) });
-      });
+      const parsed = await recognizeReceipt(prepared);
       if (request !== requestRef.current) return;
-      const empty =
-        parsed.items.length === 0 &&
-        parsed.totalCents == null &&
-        parsed.taxCents == null &&
-        parsed.tipCents == null &&
-        parsed.serviceCents == null &&
-        parsed.otherExtras.length === 0;
+      const empty = parsed.items.length === 0 && parsed.totalCents == null && parsed.taxCents == null;
       if (empty) {
-        setReadError("No line items showed up in that photo. Enter the bill by hand, or try a straighter shot.");
-        setReading(null);
-        return;
+        setReadError("No lines came back. Add each item below.");
+        setItems([blankItem()]);
+      } else {
+        applyRecognition(parsed);
       }
-      applyRecognition(parsed);
-      setReading(null);
-      setStep("review");
     } catch (error) {
       if (request !== requestRef.current) return;
       setReadError(friendlyReadError(error));
-      setReading(null);
+      setItems([blankItem()]);
+    } finally {
+      if (request === requestRef.current) setReading(false);
     }
-  }
-
-  function loadSample() {
-    requestRef.current += 1;
-    setReading(null);
-    setReadError(null);
-    const sample = createSampleBill();
-    setSymbol(sample.currencySymbol);
-    setItems(sample.items);
-    setTaxCents(sample.taxCents);
-    setTipCents(sample.tipCents);
-    setServiceCents(sample.serviceCents);
-    setOtherExtras(sample.otherExtras);
-    setDetectedTotalCents(sample.detectedTotalCents);
-    setOcrText(null);
-    setSelectedItemId(null);
-    setStep("review");
   }
 
   function startBlank() {
     requestRef.current += 1;
-    setReading(null);
+    setReading(false);
     setReadError(null);
     setItems([blankItem()]);
     setTaxCents(0);
@@ -166,7 +137,6 @@ export default function App() {
     setServiceCents(0);
     setOtherExtras([]);
     setDetectedTotalCents(null);
-    setOcrText(null);
     setSelectedItemId(null);
     setStep("review");
   }
@@ -177,7 +147,7 @@ export default function App() {
       if (!ok) return;
     }
     requestRef.current += 1;
-    setReading(null);
+    setReading(false);
     setReadError(null);
     setStep("capture");
     setSymbol("$");
@@ -189,7 +159,6 @@ export default function App() {
     setDetectedTotalCents(null);
     setPeople([]);
     setSelectedItemId(null);
-    setOcrText(null);
     setPhotoUrl((current) => {
       if (current) URL.revokeObjectURL(current);
       return null;
@@ -215,53 +184,13 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="slip">
       <a className="skip" href="#main">
         Skip to the bill
       </a>
-      <header className="masthead">
-        <p className="eyebrow">On-device receipt split</p>
-        <h1>Splitit</h1>
-        <p className="tagline">
-          {step === "capture"
-            ? "Photograph a receipt. Split it fairly."
-            : `${items.length} ${items.length === 1 ? "item" : "items"} · ${formatMoney(result.billTotalCents, mark)}`}
-        </p>
-        <nav className="steps" aria-label="Steps">
-          {STEPS.map((entry, index) => {
-            const state = index === stepIndex ? "is-current" : index < stepIndex ? "is-done" : "";
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                className={`step ${state}`}
-                aria-current={index === stepIndex ? "step" : undefined}
-                disabled={index > stepIndex}
-                onClick={() => setStep(entry.id)}
-              >
-                <span>{index + 1}</span>
-                {entry.label}
-              </button>
-            );
-          })}
-        </nav>
-      </header>
-
+      <p className="store">Splitit</p>
       <main id="main">
-        {step === "capture" && (
-          <CaptureStep
-            photoUrl={photoUrl}
-            reading={reading}
-            error={readError}
-            onPick={(file) => void readFile(file)}
-            onCancelRead={() => {
-              requestRef.current += 1;
-              setReading(null);
-            }}
-            onManual={startBlank}
-            onSample={loadSample}
-          />
-        )}
+        {step === "capture" && <CaptureStep onPick={(file) => void readFile(file)} onManual={startBlank} />}
 
         {step === "review" && (
           <ReviewStep
@@ -272,7 +201,9 @@ export default function App() {
             serviceCents={serviceCents}
             otherExtras={otherExtras}
             detectedTotalCents={detectedTotalCents}
-            ocrText={ocrText}
+            photoUrl={photoUrl}
+            reading={reading}
+            note={readError}
             onSymbol={setSymbol}
             onItem={(id, patch) =>
               setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)))
@@ -281,7 +212,7 @@ export default function App() {
               setItems((current) => current.filter((item) => item.id !== id));
               setSelectedItemId((current) => (current === id ? null : current));
             }}
-            onAddItem={() => setItems((current) => [...current, blankItem()])}
+            onAddItem={(item) => setItems((current) => [...current, item])}
             onTax={setTaxCents}
             onTip={setTipCents}
             onService={setServiceCents}

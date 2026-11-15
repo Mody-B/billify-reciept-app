@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReceipt, parseReceiptText, type OcrWord } from "./parseReceipt";
+import { parseReceipt, parseReceiptText, receiptFromVision, type OcrWord } from "./parseReceipt";
 
 function word(text: string, x: number, y: number, width = 40): OcrWord {
   return { text, x0: x, y0: y, x1: x + width, y1: y + 16 };
@@ -90,5 +90,60 @@ describe("parseReceipt", () => {
   it("does not turn the subtotal or a thank-you line into items", () => {
     const parsed = parseReceiptText("Thanks\nSoup 6.00\nSubtotal 6.00\nTotal 6.00");
     expect(parsed.items.map((item) => item.name)).toEqual(["Soup"]);
+  });
+
+  it("joins wrapped names and reads quantity prefixes", () => {
+    const parsed = parseReceiptText(`JOE'S DINER
+123 Main Street
+(555) 010-2000
+GRILLED
+CHICKEN SANDWICH 14.50
+2 ICED
+TEA 6.00
+QTY 3 Wings 12.00
+2x Fries 7.00`);
+    expect(parsed.items).toEqual([
+      { name: "GRILLED CHICKEN SANDWICH", quantity: 1, priceCents: 1450 },
+      { name: "ICED TEA", quantity: 2, priceCents: 600 },
+      { name: "Wings", quantity: 3, priceCents: 1200 },
+      { name: "Fries", quantity: 2, priceCents: 700 },
+    ]);
+  });
+
+  it("keeps tax, fees, and the card slip out of the item list", () => {
+    const parsed = parseReceiptText(`Burger 10.00
+NO ONION
+Sales Tax 0.80
+NY State Tax 0.40
+Bag fee 0.10
+Subtotal 10.00
+Amount Due 11.30
+VISA ****4242
+AUTH 839201
+Thank you`);
+    expect(parsed.items).toEqual([{ name: "Burger NO ONION", quantity: 1, priceCents: 1000 }]);
+    expect(parsed.taxCents).toBe(120);
+    expect(parsed.otherExtras).toEqual([{ label: "Bag fee", amountCents: 10 }]);
+    expect(parsed.totalCents).toBe(1130);
+    expect(parsed.subtotalCents).toBe(1000);
+  });
+
+  it("moves a tax line the model put in items back into tax", () => {
+    const parsed = receiptFromVision({
+      currencySymbol: "$",
+      items: [
+        { name: "Burger", quantity: 1, priceCents: 1000 },
+        { name: "Sales Tax", quantity: 1, priceCents: 80 },
+      ],
+      taxCents: 0,
+      tipCents: 150,
+      otherFees: [{ label: "Delivery fee", amountCents: 200 }],
+      totalCents: 1430,
+    });
+    expect(parsed?.items).toEqual([{ name: "Burger", quantity: 1, priceCents: 1000 }]);
+    expect(parsed?.taxCents).toBe(80);
+    expect(parsed?.tipCents).toBe(150);
+    expect(parsed?.otherExtras).toEqual([{ label: "Delivery fee", amountCents: 200 }]);
+    expect(parsed?.totalCents).toBe(1430);
   });
 });
