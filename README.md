@@ -1,6 +1,6 @@
 # Splitit
 
-Split a restaurant receipt without sending the photo anywhere.
+Split a restaurant receipt from a photo.
 
 Splitit is a phone-first site. Photograph a receipt, check the lines, type the names, and drag each item onto a person. An item can be shared. Tax, tip, service, and any other extra are split in proportion to each person's items. All of the math is integer cents with largest-remainder rounding, so the totals match the bill exactly.
 
@@ -25,11 +25,11 @@ npm run preview
 
 ## Hosting
 
-Pushes to `main` run the tests and build the site. [GitHub Pages](https://pages.github.com/) is set up in `.github/workflows/pages.yml` and publishes to https://mody-b.github.io/billify-reciept-app/ when Pages is enabled. That build uses the base path `/billify-reciept-app/`. `npm run dev` serves the app at `/`.
+The live site is https://mody-b.github.io/billify-reciept-app/. That host is GitHub Pages. The workflow in `.github/workflows/pages.yml` uploads only the static `dist` folder, so `POST /api/read-receipt` is rejected (HTTP 405). Photos cannot be read there.
 
-The receipt reader is a Vercel function, `api/read-receipt.js`. It calls OpenAI `gpt-4o-mini` and reads the key from the server environment variable `OPENAI_API_KEY`. Put that variable in the Vercel project settings. Do not prefix it with `VITE_` and do not commit a value. Without the key, or if a photo cannot be read, type the items by hand. The photo stays on the check screen so you can correct a line in one tap.
+To read photos, deploy this repo on Vercel so `api/read-receipt.js` runs, and set the server env var `OPENAI_API_KEY`. Do not prefix it with `VITE_` and do not commit a value. A Vercel project name has not been chosen yet. `npm run dev` runs the same function locally and reports a missing key when `OPENAI_API_KEY` is unset.
 
-A Vercel project name has not been chosen yet.
+The function calls OpenAI `gpt-4o-mini`. The photo stays on the check screen so you can correct a line in one tap.
 
 ## Receipt reader limits
 
