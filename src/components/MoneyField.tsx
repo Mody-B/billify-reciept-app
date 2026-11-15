@@ -1,0 +1,51 @@
+import { useEffect, useState } from "react";
+import { formatCentsForInput, parseMoneyInput } from "../money";
+
+type MoneyFieldProps = {
+  id: string;
+  label: string;
+  cents: number;
+  symbol: string;
+  onChange: (cents: number) => void;
+};
+
+export function MoneyField({ id, label, cents, symbol, onChange }: MoneyFieldProps) {
+  const [text, setText] = useState(() => formatCentsForInput(cents));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setText(formatCentsForInput(cents));
+  }, [cents, focused]);
+
+  return (
+    <label className="money-field" htmlFor={id}>
+      <span>{label}</span>
+      <span className="money-input">
+        <span className="money-prefix" aria-hidden="true">
+          {symbol || "$"}
+        </span>
+        <input
+          id={id}
+          inputMode="decimal"
+          autoComplete="off"
+          value={text}
+          onFocus={(event) => {
+            setFocused(true);
+            event.currentTarget.select();
+          }}
+          onChange={(event) => setText(event.target.value)}
+          onBlur={() => {
+            setFocused(false);
+            const parsed = parseMoneyInput(text);
+            if (parsed == null) {
+              setText(formatCentsForInput(cents));
+              return;
+            }
+            onChange(parsed);
+            setText(formatCentsForInput(parsed));
+          }}
+        />
+      </span>
+    </label>
+  );
+}
