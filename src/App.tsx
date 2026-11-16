@@ -25,7 +25,7 @@ export default function App() {
   const [detectedTotalCents, setDetectedTotalCents] = useState<number | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [evenCount, setEvenCount] = useState<number | null>(null);
-  const [splitMode, setSplitMode] = useState<"even" | "items">("even");
+  const [splitMode, setSplitMode] = useState<"even" | "items" | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -169,7 +169,7 @@ export default function App() {
     setDetectedTotalCents(null);
     setPeople([]);
     setEvenCount(null);
-    setSplitMode("even");
+    setSplitMode(null);
     setSelectedItemId(null);
     setPhotoUrl((current) => {
       if (current) URL.revokeObjectURL(current);
@@ -242,20 +242,34 @@ export default function App() {
               setOtherExtras((current) => [...current, { id: newId(), label: "Extra", amountCents: 0 }])
             }
             onBack={() => setStep("capture")}
-            onNext={() => setStep("people")}
+            onNext={() => {
+              setSplitMode(null);
+              setStep("people");
+            }}
           />
         )}
 
         {step === "people" && (
           <PeopleStep
             people={people}
+            mode={splitMode}
+            evenCount={evenCount}
+            onMode={setSplitMode}
             onAdd={addPerson}
             onRemove={removePerson}
-            onBack={() => setStep("review")}
-            onNext={() => {
-              setSplitMode(people.length > 0 ? "items" : "even");
-              setStep("assign");
+            onEven={(count) => {
+              setEvenCount(count);
+              setSplitMode("even");
+              setStep("summary");
             }}
+            onBack={() => {
+              if (splitMode != null) {
+                setSplitMode(null);
+                return;
+              }
+              setStep("review");
+            }}
+            onNext={() => setStep("assign")}
           />
         )}
 
@@ -321,18 +335,10 @@ export default function App() {
                 ),
               )
             }
-            mode={splitMode}
-            onMode={setSplitMode}
-            evenCount={evenCount}
             onBack={() => setStep("people")}
             onNext={() => {
               setEvenCount(null);
               setSplitMode("items");
-              setStep("summary");
-            }}
-            onEven={(count) => {
-              setEvenCount(count);
-              setSplitMode("even");
               setStep("summary");
             }}
           />
@@ -345,7 +351,7 @@ export default function App() {
             people={people}
             result={result}
             evenShares={evenCount == null ? null : splitEvenly(result.billTotalCents, evenCount)}
-            onBack={() => setStep("assign")}
+            onBack={() => setStep(splitMode === "even" ? "people" : "assign")}
             onReset={reset}
           />
         )}

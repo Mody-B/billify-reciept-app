@@ -3,14 +3,21 @@ import type { Person } from "../types";
 
 type PeopleStepProps = {
   people: Person[];
+  mode: "even" | "items" | null;
+  evenCount: number | null;
+  onMode: (mode: "even" | "items" | null) => void;
   onAdd: (name: string) => void;
   onRemove: (id: string) => void;
+  onEven: (count: number) => void;
   onBack: () => void;
   onNext: () => void;
 };
 
-export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleStepProps) {
+export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, onEven, onBack, onNext }: PeopleStepProps) {
   const [name, setName] = useState("");
+  const [evenText, setEvenText] = useState(evenCount == null ? "" : String(evenCount));
+  const typedCount = Number(evenText);
+  const evenReady = Number.isInteger(typedCount) && typedCount >= 1 && typedCount <= 99;
 
   function add() {
     const trimmed = name.trim();
@@ -20,58 +27,108 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
   }
 
   return (
-    <section className="step-panel" aria-labelledby="people-title">
+    <section className="step-panel" aria-labelledby="people-title" data-testid="people-board">
       <div className="step-copy">
         <h2 id="people-title">Who’s splitting?</h2>
-        <p>Add a name for each person who will take items. Or continue and split the bill evenly.</p>
+        <p>
+          {mode == null
+            ? "Choose one way to split this bill."
+            : mode === "even"
+              ? "Type how many people. The bill, including tax and extras, is divided by that number."
+              : "Type a name and tap Add. Then you’ll put items on them."}
+        </p>
       </div>
 
-      <form
-        className="name-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          add();
-        }}
-      >
-        <label>
-          <span>Name</span>
-          <input
-            data-testid="person-name"
-            value={name}
-            placeholder="Alex"
-            maxLength={40}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <button type="submit" className="button" data-testid="add-person">
-          Add
-        </button>
-      </form>
+      {mode == null ? (
+        <div className="split-modes" role="group" aria-label="How to split">
+          <button type="button" className="button secondary" data-testid="assign-items" onClick={() => onMode("items")}>
+            Assign items
+          </button>
+          <button type="button" className="button secondary" data-testid="split-evenly" onClick={() => onMode("even")}>
+            Split evenly
+          </button>
+        </div>
+      ) : mode === "items" ? (
+        <>
+          <form
+            className="name-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              add();
+            }}
+          >
+            <label>
+              <span>Name</span>
+              <input
+                data-testid="person-name"
+                value={name}
+                placeholder="Alex"
+                maxLength={40}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <button type="submit" className="button" data-testid="add-person">
+              Add
+            </button>
+          </form>
 
-      {people.length === 0 ? (
-        <p className="empty">No names yet. Add someone to assign items, or continue and split evenly.</p>
+          {people.length === 0 ? (
+            <p className="empty">No one yet. Add at least one person.</p>
+          ) : (
+            <ul className="name-tabs">
+              {people.map((person) => (
+                <li key={person.id} className="person-tab">
+                  <span>{person.name}</span>
+                  <button type="button" className="tab-x" aria-label={`Remove ${person.name}`} onClick={() => onRemove(person.id)}>
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       ) : (
-        <ul className="name-tabs">
-          {people.map((person) => (
-            <li key={person.id} className="person-tab">
-              <span>{person.name}</span>
-              <button type="button" className="tab-x" aria-label={`Remove ${person.name}`} onClick={() => onRemove(person.id)}>
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
+        <form
+          className="even-count"
+          data-testid="even-split"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (evenReady) onEven(typedCount);
+          }}
+        >
+          <label>
+            <span>People</span>
+            <input
+              data-testid="even-count"
+              inputMode="numeric"
+              min={1}
+              max={99}
+              value={evenText}
+              onChange={(event) => setEvenText(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+            />
+          </label>
+        </form>
       )}
 
       <div className="step-actions">
-        <button
-          type="button"
-          className="button"
-          data-testid="continue"
-          onClick={onNext}
-        >
-          Next
-        </button>
+        {mode === "items" && (
+          <button type="button" className="button" data-testid="continue" disabled={people.length === 0} onClick={onNext}>
+            Next: assign items
+          </button>
+        )}
+        {mode === "even" && (
+          <button
+            type="button"
+            className="button"
+            data-testid="continue"
+            disabled={!evenReady}
+            onClick={() => {
+              if (evenReady) onEven(typedCount);
+            }}
+          >
+            Next: who pays what
+          </button>
+        )}
         <button type="button" className="text-button" onClick={onBack}>
           Back
         </button>
