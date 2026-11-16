@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatMoney, shareLabel } from "../money";
-import { allocateCents, splitEvenly } from "../split/splitBill";
+import { allocateCents } from "../split/splitBill";
 import type { SplitResult } from "../split/splitBill";
 import type { Item, Person } from "../types";
 
@@ -23,6 +23,9 @@ type AssignStepProps = {
   onAssign: (itemId: string, personId: string) => void;
   onShareMode: (itemId: string, mode: "even" | "custom") => void;
   onWeight: (itemId: string, personId: string, weight: number) => void;
+  mode: "even" | "items";
+  evenCount: number | null;
+  onMode: (mode: "even" | "items") => void;
   onBack: () => void;
   onNext: () => void;
   onEven: (count: number) => void;
@@ -62,16 +65,18 @@ export function AssignStep({
   onAssign,
   onShareMode,
   onWeight,
+  mode,
+  evenCount,
+  onMode,
   onBack,
   onNext,
   onEven,
 }: AssignStepProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [nudge, setNudge] = useState("");
-  const [evenText, setEvenText] = useState("2");
-  const evenCount = Number(evenText);
-  const evenReady = Number.isInteger(evenCount) && evenCount >= 1 && evenCount <= 99;
-  const evenShares = evenReady ? splitEvenly(result.billTotalCents, evenCount) : [];
+  const [evenText, setEvenText] = useState(evenCount == null ? "" : String(evenCount));
+  const typedCount = Number(evenText);
+  const evenReady = Number.isInteger(typedCount) && typedCount >= 1 && typedCount <= 99;
   const open = items.filter((item) => item.assignments.length === 0);
   const placed = items.filter((item) => item.assignments.length > 0);
   const visual = [...open, ...placed];
@@ -113,6 +118,7 @@ export function AssignStep({
       data-testid="assign-board"
       onKeyDown={(event) => {
         const target = event.target;
+        if (mode !== "items") return;
         if (target instanceof HTMLElement && target.closest("input, textarea")) return;
         if (event.key === "Escape") {
           onSelect(null);
@@ -127,9 +133,60 @@ export function AssignStep({
       }}
     >
       <div className="step-copy">
-        <h2 id="assign-title">Put each item on someone</h2>
-        <p id="assign-hint">Drag the grip onto a person, or tap an item and then a person. Tap again to remove them. Keys 1–9 work too.</p>
+        <h2 id="assign-title">How to split</h2>
+        <p id="assign-hint">
+          {mode === "even"
+            ? "Type how many people. The bill, including tax and extras, is divided by that number."
+            : "Drag the grip onto a person, or tap an item and then a person. Tap again to remove them. Keys 1–9 work too."}
+        </p>
       </div>
+      <div className="split-modes" role="group" aria-label="How to split">
+        <button
+          type="button"
+          className={mode === "even" ? "button" : "button secondary"}
+          aria-pressed={mode === "even"}
+          data-testid="split-evenly"
+          onClick={() => onMode("even")}
+        >
+          Split evenly
+        </button>
+        <button
+          type="button"
+          className={mode === "items" ? "button" : "button secondary"}
+          aria-pressed={mode === "items"}
+          data-testid="assign-items"
+          onClick={() => {
+            setDrag(null);
+            onMode("items");
+          }}
+        >
+          Assign items
+        </button>
+      </div>
+
+      {mode === "even" ? (
+        <form
+          className="even-count"
+          data-testid="even-split"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (evenReady) onEven(typedCount);
+          }}
+        >
+          <label>
+            <span>People</span>
+            <input
+              data-testid="even-count"
+              inputMode="numeric"
+              min={1}
+              max={99}
+              value={evenText}
+              onChange={(event) => setEvenText(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+            />
+          </label>
+        </form>
+      ) : (
+        <>
       <p className="assign-status" role="status" aria-live="polite">
         {nudge || status}
       </p>
@@ -177,8 +234,8 @@ export function AssignStep({
           ))}
         </div>
 
-        <div className="assign-side">
         <div className="people-tabs" aria-label="People">
+          {people.length === 0 && <p className="empty">No names yet. Go back and add someone.</p>}
           {people.map((person, index) => {
             const row = result.people.find((entry) => entry.personId === person.id);
             const on = selected?.assignments.some((assignment) => assignment.personId === person.id) ?? false;
@@ -209,46 +266,24 @@ export function AssignStep({
             );
           })}
         </div>
-        <form
-          className="even-split"
-          data-testid="even-split"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (evenReady) onEven(evenCount);
-          }}
-        >
-          <h3>Split evenly</h3>
-          <p className="even-note">The whole bill, including tax and extras.</p>
-          <label>
-            <span>People</span>
-            <input
-              data-testid="even-count"
-              inputMode="numeric"
-              min={1}
-              max={99}
-              value={evenText}
-              onChange={(event) => setEvenText(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
-            />
-          </label>
-          {evenShares.length > 0 && (
-            <ul className="summary-lines">
-              {evenShares.map((cents, index) => (
-                <li key={index}>
-                  <span>{index + 1}</span>
-                  <span>{formatMoney(cents, symbol || "$")}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button type="submit" className="button secondary" data-testid="use-even-split" disabled={!evenReady}>
-            Split the bill
-          </button>
-        </form>
-        </div>
       </div>
+        </>
+      )}
 
       <div className="step-actions">
-        <button type="button" className="button" data-testid="continue" onClick={onNext}>
+        <button
+          type="button"
+          className="button"
+          data-testid="continue"
+          disabled={mode === "even" && !evenReady}
+          onClick={() => {
+            if (mode === "even") {
+              if (evenReady) onEven(typedCount);
+              return;
+            }
+            onNext();
+          }}
+        >
           Next: who pays what
         </button>
         <button type="button" className="text-button" onClick={onBack}>

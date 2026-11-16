@@ -25,6 +25,7 @@ export default function App() {
   const [detectedTotalCents, setDetectedTotalCents] = useState<number | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [evenCount, setEvenCount] = useState<number | null>(null);
+  const [splitMode, setSplitMode] = useState<"even" | "items">("even");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -168,6 +169,7 @@ export default function App() {
     setDetectedTotalCents(null);
     setPeople([]);
     setEvenCount(null);
+    setSplitMode("even");
     setSelectedItemId(null);
     setPhotoUrl((current) => {
       if (current) URL.revokeObjectURL(current);
@@ -250,7 +252,10 @@ export default function App() {
             onAdd={addPerson}
             onRemove={removePerson}
             onBack={() => setStep("review")}
-            onNext={() => setStep("assign")}
+            onNext={() => {
+              setSplitMode(people.length > 0 ? "items" : "even");
+              setStep("assign");
+            }}
           />
         )}
 
@@ -316,13 +321,18 @@ export default function App() {
                 ),
               )
             }
+            mode={splitMode}
+            onMode={setSplitMode}
+            evenCount={evenCount}
             onBack={() => setStep("people")}
             onNext={() => {
               setEvenCount(null);
+              setSplitMode("items");
               setStep("summary");
             }}
             onEven={(count) => {
               setEvenCount(count);
+              setSplitMode("even");
               setStep("summary");
             }}
           />

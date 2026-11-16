@@ -422,19 +422,16 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
 .people-tabs .person-tab { width: auto; flex: 0 0 auto; }
 
 .assign-status { min-height: 1.3em; text-align: center; font-weight: 650; }
-.assign-layout { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
-.assign-side { display: contents; }
-.even-split {
+.split-modes {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  order: -1;
-  padding-bottom: 12px;
-  border-bottom: 1px dashed var(--line);
+  margin-top: 4px;
 }
-.even-split h3 { margin: 0; font-size: 1rem; }
-.even-note { margin: 0; color: var(--muted); font-size: 0.78rem; }
-.even-split .summary-lines { margin: 0; max-height: 9rem; overflow: auto; }
+.split-modes .button { min-height: 48px; padding: 10px 8px; }
+.even-count { margin-top: 16px; }
 .even-shares { margin: 0 0 12px; }
+.assign-layout { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
 .item-scroller { display: grid; gap: 8px; max-height: 42dvh; overflow: auto; }
 .group-label {
   margin: 8px 0 0;
@@ -553,22 +550,7 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
   }
   .check-layout { grid-template-columns: 180px minmax(0, 1fr); align-items: start; }
   .preview img { max-height: 420px; }
-  .assign-layout {
-    display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
-    grid-template-areas:
-      "items even"
-      "items people";
-    align-items: start;
-  }
-  .assign-layout .item-scroller { grid-area: items; }
-  .assign-layout .even-split {
-    grid-area: even;
-    order: 0;
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-  .assign-layout .people-tabs { grid-area: people; }
+  .assign-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; align-items: start; }
   .item-scroller { max-height: 60dvh; }
   .people-tabs { align-content: start; }
 }
