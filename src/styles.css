@@ -58,7 +58,16 @@ button { cursor: pointer; }
   box-shadow: 0 0 0 1px rgba(36, 28, 22, 0.04);
 }
 
-.slip > main { flex: 1; }
+.slip > main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-panel { position: relative; flex: 1; }
+
+.step-copy,
+.capture-actions { position: relative; z-index: 3; }
 
 .slip::before {
   content: "";
@@ -506,6 +515,66 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
   .people-tabs { align-content: start; }
 }
 
+.home-mascot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 76px;
+  height: 108px;
+  touch-action: none;
+  cursor: grab;
+  z-index: 1;
+  user-select: none;
+}
+.home-mascot.is-hold,
+.home-mascot.is-fly { z-index: 6; }
+.home-mascot.is-hold { cursor: grabbing; }
+.mascot-turn { width: 76px; height: 108px; }
+.mascot-turn.is-left { transform: scaleX(-1); }
+.mascot-svg { display: block; overflow: visible; }
+.mascot-paper {
+  fill: #fffdf8;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+.mascot-print { fill: var(--muted); stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; }
+.mascot-print path { fill: none; }
+.mascot-total { fill: none; stroke: var(--receipt-red); stroke-width: 2.4; stroke-linecap: round; }
+.mascot-face { fill: var(--ink); stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.mascot-face path { fill: none; }
+.mascot-shadow { fill: rgba(36, 28, 22, 0.16); }
+.arm,
+.leg {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  fill: var(--ink);
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+.arm line,
+.leg line { fill: none; }
+.limb-halo { stroke: #fffdf8; stroke-width: 5.5; fill: #fffdf8; }
+
+.home-mascot.is-walking .leg-l { animation: mascot-step 0.44s ease-in-out infinite; }
+.home-mascot.is-walking .leg-r { animation: mascot-step 0.44s ease-in-out infinite reverse; }
+.home-mascot.is-walking .arm-l { animation: mascot-step 0.44s ease-in-out infinite reverse; }
+.home-mascot.is-walking .arm-r { animation: mascot-step 0.44s ease-in-out infinite; }
+.home-mascot.is-walking .mascot-svg { animation: mascot-bob 0.44s ease-in-out infinite; }
+
+@keyframes mascot-step {
+  0%, 100% { transform: rotate(22deg); }
+  50% { transform: rotate(-22deg); }
+}
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; }
+  .home-mascot .arm,
+  .home-mascot .leg,
+  .home-mascot .mascot-svg { animation: none !important; }
 }

@@ -1,3 +1,5 @@
+import { ReceiptMascot } from "./ReceiptMascot";
+
 type CaptureStepProps = {
   onPick: (file: File) => void;
   onManual: () => void;
@@ -46,6 +48,7 @@ export function CaptureStep({ onPick, onManual }: CaptureStepProps) {
           }}
         />
       </div>
+      <ReceiptMascot />
     </section>
   );
 }
