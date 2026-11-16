@@ -46,7 +46,7 @@ button { cursor: pointer; }
 .skip:focus { top: 8px; }
 
 .slip {
-  width: min(440px, 100%);
+  width: min(32rem, 100%);
   margin: 0 auto;
   min-height: 100dvh;
   display: flex;
@@ -129,6 +129,11 @@ button { cursor: pointer; }
   display: grid;
   gap: 10px;
   margin-top: 18px;
+}
+
+.capture-actions {
+  /* Keep-out under the home controls. Matches CONTROL_CLEARANCE. */
+  padding-bottom: 48px;
 }
 
 .button,
@@ -507,7 +512,16 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
 }
 
 @media (min-width: 760px) {
-  .slip { margin: 24px auto; min-height: auto; border-radius: 2px; }
+  body {
+    padding-top: max(32px, env(safe-area-inset-top));
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+  .slip {
+    width: min(32rem, calc(100% - 64px));
+    margin: 0 auto;
+    min-height: calc(100dvh - 64px);
+    border-radius: 2px;
+  }
   .check-layout { grid-template-columns: 180px minmax(0, 1fr); align-items: start; }
   .preview img { max-height: 420px; }
   .assign-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; align-items: start; }
@@ -527,7 +541,7 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
   user-select: none;
 }
 .home-mascot.is-hold,
-.home-mascot.is-fly { z-index: 6; }
+.home-mascot.is-fly { z-index: 2; }
 .home-mascot.is-hold { cursor: grabbing; }
 .mascot-turn { width: 76px; height: 108px; }
 .mascot-turn.is-left { transform: scaleX(-1); }

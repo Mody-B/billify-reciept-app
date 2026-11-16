@@ -14,6 +14,9 @@ export type Sample = Point & { t: number };
 const FLICK_WINDOW_MS = 100;
 const MAX_FLICK = 1400;
 
+/** Empty paper kept between the controls and the mascot, including a thrown spin. */
+export const CONTROL_CLEARANCE = 48;
+
 export function flickVelocity(samples: Sample[], now: number): Point {
   const recent = samples.filter((sample) => now - sample.t <= FLICK_WINDOW_MS && now - sample.t >= 0);
   if (recent.length < 2) return { x: 0, y: 0 };
@@ -92,6 +95,23 @@ export function stepToward(
     arrived: false,
     facing: nextFacing,
   };
+}
+
+export function floorBelowControls(
+  controlBottom: number,
+  stage: { width: number; height: number },
+  size: { width: number; height: number },
+): StageBounds {
+  const side = 8;
+  const maxX = Math.max(side, stage.width - size.width - side);
+  const minX = Math.min(side, maxX);
+  const maxY = Math.max(0, stage.height - size.height);
+  const minY = Math.min(maxY, Math.max(0, controlBottom + CONTROL_CLEARANCE));
+  return { minX, minY, maxX, maxY, floorMinY: minY };
+}
+
+export function spawnPoint(bounds: StageBounds): Point {
+  return { x: (bounds.minX + bounds.maxX) / 2, y: bounds.maxY };
 }
 
 export function pickGoal(bounds: StageBounds, random: () => number = Math.random): Point {

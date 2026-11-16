@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flickVelocity, pickGoal, stepSlide, stepToward } from "./motion";
+import { CONTROL_CLEARANCE, clampPoint, floorBelowControls, flickVelocity, pickGoal, spawnPoint, stepSlide, stepToward } from "./motion";
 
 describe("receipt mascot motion", () => {
   it("reads a flick from recent pointer samples and caps the speed", () => {
@@ -48,6 +48,19 @@ describe("receipt mascot motion", () => {
 
     const left = stepToward({ x: 50, y: 0 }, { x: 10, y: 0 }, 0.1, 40, 1);
     expect(left.facing).toBe(-1);
+  });
+
+  it("spawns at the bottom and stays clear of the controls", () => {
+    const bounds = floorBelowControls(280, { width: 390, height: 844 }, { width: 76, height: 108 });
+    expect(bounds.minY).toBe(280 + CONTROL_CLEARANCE);
+    expect(bounds.floorMinY).toBe(bounds.minY);
+    expect(bounds.maxY).toBe(844 - 108);
+    expect(spawnPoint(bounds)).toEqual({ x: (bounds.minX + bounds.maxX) / 2, y: bounds.maxY });
+
+    const blocked = stepSlide({ x: 40, y: bounds.minY + 4 }, { x: 0, y: -900 }, 0.05, bounds);
+    expect(blocked.point.y).toBe(bounds.minY);
+    expect(clampPoint({ x: 20, y: 0 }, bounds).y).toBe(bounds.minY);
+    expect(pickGoal(bounds, () => 0).y).toBeGreaterThanOrEqual(bounds.minY);
   });
 
   it("picks the next stroll inside the open floor", () => {

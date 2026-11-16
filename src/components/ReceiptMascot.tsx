@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { clampPoint, flickVelocity, pickGoal, stepSlide, stepToward, type Sample, type StageBounds } from "../mascot/motion";
+import { clampPoint, flickVelocity, floorBelowControls, pickGoal, spawnPoint, stepSlide, stepToward, type Sample, type StageBounds } from "../mascot/motion";
 
 const WIDTH = 76;
 const HEIGHT = 108;
@@ -56,29 +56,24 @@ export function ReceiptMascot() {
     const measure = () => {
       const width = stage.clientWidth;
       const height = stage.clientHeight;
-      const actions = stage.querySelector(".capture-actions");
-      let floorMinY = height * 0.55;
-      if (actions instanceof HTMLElement) {
-        const bottom = actions.getBoundingClientRect().bottom - stage.getBoundingClientRect().top + 12;
-        floorMinY = bottom;
-      }
-      const bounds: StageBounds = {
-        minX: 0,
-        minY: 0,
-        maxX: Math.max(0, width - WIDTH),
-        maxY: Math.max(0, height - HEIGHT),
-        floorMinY: 0,
-      };
-      bounds.floorMinY = Math.min(Math.max(0, floorMinY), bounds.maxY);
+      if (width < WIDTH || height < HEIGHT) return;
+      const stageTop = stage.getBoundingClientRect().top;
+      let controlBottom = 0;
+      stage.querySelectorAll("button, a").forEach((control) => {
+        const bottom = control.getBoundingClientRect().bottom - stageTop;
+        if (bottom > controlBottom) controlBottom = bottom;
+      });
+      const bounds: StageBounds = floorBelowControls(controlBottom, { width, height }, { width: WIDTH, height: HEIGHT });
       boundsRef.current = bounds;
       const body = bodyRef.current;
       if (!placedRef.current) {
         placedRef.current = true;
-        body.point = { x: (bounds.minX + bounds.maxX) / 2, y: bounds.maxY };
+        body.point = spawnPoint(bounds);
         body.goal = pickGoal(bounds);
         body.pauseUntil = performance.now() + 700;
       } else {
         body.point = clampPoint(body.point, bounds);
+        body.goal = clampPoint(body.goal, bounds);
       }
     };
 
