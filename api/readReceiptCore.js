@@ -60,8 +60,12 @@ function parseModelJson(text) {
   return null;
 }
 
-export async function readReceipt(image, env = process.env) {
-  const key = typeof env?.OPENROUTER_API_KEY === "string" ? env.OPENROUTER_API_KEY.trim() : "";
+const KEY_NAME = "OPENROUTER_API_KEY";
+
+export async function readReceipt(image, env = process["env"]) {
+  const source = env && typeof env === "object" ? env : process["env"];
+  const raw = source[KEY_NAME];
+  const key = typeof raw === "string" ? raw.trim() : "";
   if (!key) return { status: 503, body: { error: "missing_key" } };
   if (typeof image !== "string" || !image.startsWith("data:image/")) {
     return { status: 400, body: { error: "bad_image" } };

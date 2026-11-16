@@ -1,5 +1,8 @@
 import { readReceipt } from "./readReceiptCore.js";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 async function payloadFrom(request) {
   const body = request.body;
   if (typeof body === "string") return JSON.parse(body);
@@ -14,7 +17,15 @@ async function payloadFrom(request) {
 }
 
 function send(response, result) {
+  response.setHeader("Cache-Control", "no-store");
   response.status(result.status).json(result.body);
+}
+
+function webResult(result) {
+  return new Response(JSON.stringify(result.body), {
+    status: result.status,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 }
 
 export default async function handler(request, response) {
@@ -24,10 +35,7 @@ export default async function handler(request, response) {
       send(response, result);
       return;
     }
-    return new Response(JSON.stringify(result.body), {
-      status: result.status,
-      headers: { "Content-Type": "application/json" },
-    });
+    return webResult(result);
   }
 
   let image = "";
@@ -40,19 +48,13 @@ export default async function handler(request, response) {
       send(response, result);
       return;
     }
-    return new Response(JSON.stringify(result.body), {
-      status: result.status,
-      headers: { "Content-Type": "application/json" },
-    });
+    return webResult(result);
   }
 
-  const result = await readReceipt(image, process.env);
+  const result = await readReceipt(image, process["env"]);
   if (typeof response?.status === "function") {
     send(response, result);
     return;
   }
-  return new Response(JSON.stringify(result.body), {
-    status: result.status,
-    headers: { "Content-Type": "application/json" },
-  });
+  return webResult(result);
 }

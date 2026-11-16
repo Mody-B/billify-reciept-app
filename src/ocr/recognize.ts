@@ -72,7 +72,7 @@ export function classifyReadResponse(status: number, contentType: string, errorC
 export function explainReadFailure(kind: ReadFailure, pageUrl: string): string {
   const where = pageUrl || "this page";
   if (kind === "missing_key") {
-    return "OPENROUTER_API_KEY is missing on the server. Add that env var in the Vercel project, then try the photo again. You can type the lines below.";
+    return "OPENROUTER_API_KEY is not on this Production deployment. In the Vercel project billsplitapp, enable that variable for Production, then Redeploy the latest Production deployment. Open https://billsplitapp.vercel.app after it finishes. You can type the lines below.";
   }
   if (kind === "rejected_key") {
     return "The server's OPENROUTER_API_KEY was rejected. Check that env var in Vercel. You can type the lines below.";
@@ -81,7 +81,7 @@ export function explainReadFailure(kind: ReadFailure, pageUrl: string): string {
     const hostNote = where.includes("github.io")
       ? " GitHub Pages only serves the static site, so it cannot run this function."
       : "";
-    return `This site (${where}) is not running the receipt reader.${hostNote} Deploy api/read-receipt on Vercel and set the server env var OPENROUTER_API_KEY. You can type the lines below.`;
+    return `This site (${where}) is not running the receipt reader.${hostNote} Open https://billsplitapp.vercel.app. You can type the lines below.`;
   }
   if (kind === "bad_image") return "That photo is too large to send. Try a smaller shot, or type the lines below.";
   if (kind === "upstream") return "The vision service didn't return a receipt. Type the lines below, or try the photo again.";

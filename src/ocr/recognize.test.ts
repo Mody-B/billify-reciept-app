@@ -23,14 +23,15 @@ describe("explainReadFailure", () => {
   it("names OPENROUTER_API_KEY when the key is missing", () => {
     const message = explainReadFailure("missing_key", pages);
     expect(message).toContain("OPENROUTER_API_KEY");
+    expect(message).toContain("Production");
+    expect(message).toContain("billsplitapp.vercel.app");
     expect(message).not.toContain("couldn't be read");
   });
 
   it("names the page and the deploy step when the function is absent", () => {
     const message = explainReadFailure("not_deployed", pages);
     expect(message).toContain(pages);
-    expect(message).toContain("api/read-receipt");
-    expect(message).toContain("OPENROUTER_API_KEY");
+    expect(message).toContain("billsplitapp.vercel.app");
     expect(message).toContain("GitHub Pages");
     expect(message).not.toContain("couldn't be read");
   });

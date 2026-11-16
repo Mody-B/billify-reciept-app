@@ -25,9 +25,9 @@ npm run preview
 
 ## Hosting
 
-The live site is https://mody-b.github.io/billify-reciept-app/. That host is GitHub Pages. The workflow in `.github/workflows/pages.yml` uploads only the static `dist` folder, so `POST /api/read-receipt` is rejected there (HTTP 405) and the photo has to be typed in.
+Open the app at https://billsplitapp.vercel.app. https://mody-b.github.io/billify-reciept-app/ is GitHub Pages and cannot see the key.
 
-The receipt reader is `api/read-receipt.js`. It calls the free OpenRouter vision model `nvidia/nemotron-3.5-super-vl:free` and reads the key from the server environment variable `OPENROUTER_API_KEY`. Put that variable in the Vercel project settings. Do not prefix it with `VITE_` and do not commit a value. Without the key, or if a photo cannot be read, type the items by hand. The photo stays on the check screen so you can correct a line in one tap.
+The receipt reader is `api/read-receipt.js`. It calls the free OpenRouter vision model `nvidia/nemotron-3.5-super-vl:free` and reads `OPENROUTER_API_KEY` from the Production environment at request time. Set that variable for Production on the Vercel project `billsplitapp`, then Redeploy the latest Production deployment. Do not prefix it with `VITE_` and do not commit a value. A key added after a deploy is invisible until that redeploy. Without the key, or if a photo cannot be read, type the items by hand. The photo stays on the check screen so you can correct a line in one tap.
 
 ## Receipt reader limits
 
