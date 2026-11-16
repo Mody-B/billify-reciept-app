@@ -61,6 +61,13 @@ export default function App() {
   );
 
   const mark = currencySymbol(currency);
+  const slipDate = useMemo(() => {
+    const now = new Date();
+    const label = now
+      .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      .toUpperCase();
+    return { iso: now.toISOString().slice(0, 10), label };
+  }, []);
 
   function rememberPhoto(file: File) {
     const url = URL.createObjectURL(file);
@@ -189,7 +196,12 @@ export default function App() {
       <a className="skip" href="#main">
         Skip to the bill
       </a>
-      <p className="store">Splitit</p>
+      <p className="slip-head">
+        <span className="store">Splitit</span>
+        <time className="slip-date" dateTime={slipDate.iso}>
+          {slipDate.label}
+        </time>
+      </p>
       <main id="main">
         {step === "capture" && <CaptureStep onPick={(file) => void readFile(file)} onManual={startBlank} />}
 

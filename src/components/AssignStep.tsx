@@ -171,40 +171,34 @@ export function AssignStep({
           ))}
         </div>
 
-        <div className="people-tray" aria-label="People">
+        <div className="people-tabs" aria-label="People">
           {people.map((person, index) => {
             const row = result.people.find((entry) => entry.personId === person.id);
             const on = selected?.assignments.some((assignment) => assignment.personId === person.id) ?? false;
             const over = drag?.overId === person.id;
             return (
-              <div
+              <button
                 key={person.id}
-                className={`person-zone${on ? " is-on" : ""}${drag ? " is-target" : ""}${over ? " is-over" : ""}`}
+                type="button"
+                className={`person-tab${on ? " is-on" : ""}${over ? " is-over" : ""}`}
                 data-person-id={person.id}
                 data-testid="person-zone"
-                style={{ borderColor: over ? "var(--saffron)" : on ? person.color : undefined }}
+                aria-pressed={on}
+                onClick={() => {
+                  if (!selectedItemId) {
+                    setNudge("Select an item first, then tap a person.");
+                    return;
+                  }
+                  setNudge("");
+                  onToggle(selectedItemId, person.id);
+                }}
               >
-                <button
-                  type="button"
-                  className="person-hit"
-                  aria-pressed={on}
-                  onClick={() => {
-                    if (!selectedItemId) {
-                      setNudge("Select an item first, then tap a person.");
-                      return;
-                    }
-                    setNudge("");
-                    onToggle(selectedItemId, person.id);
-                  }}
-                >
-                  <span className="swatch" style={{ background: person.color }} aria-hidden="true" />
-                  <span className="person-copy">
-                    <span className="person-name">{person.name}</span>
-                    {index < 9 && <span className="person-key">Key {index + 1}</span>}
-                  </span>
-                  <strong>{formatMoney(row?.totalCents ?? 0, symbol || "$")}</strong>
-                </button>
-              </div>
+                <span className="person-name">
+                  {person.name}
+                  {index < 9 ? <span className="person-key"> {index + 1}</span> : null}
+                </span>
+                <strong>{formatMoney(row?.totalCents ?? 0, symbol || "$")}</strong>
+              </button>
             );
           })}
         </div>
@@ -302,7 +296,7 @@ function ItemCard({
               if (!person) return null;
               const fraction = shareLabel(assignment.weight, weightTotal);
               return (
-                <span key={person.id} className="chip" style={{ background: person.color }}>
+                <span key={person.id} className="chip">
                   {person.name}
                   {fraction ? ` ${fraction}` : ""} {formatMoney(shares[index] ?? 0, symbol || "$")}
                 </span>

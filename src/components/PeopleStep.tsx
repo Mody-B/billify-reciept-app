@@ -51,15 +51,12 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
       {people.length === 0 ? (
         <p className="empty">No one yet. Add at least one person to continue.</p>
       ) : (
-        <ul className="people-list">
+        <ul className="name-tabs">
           {people.map((person) => (
-            <li key={person.id}>
-              <span className="person-row">
-                <span className="swatch" style={{ background: person.color }} aria-hidden="true" />
-                <span>{person.name}</span>
-              </span>
-              <button type="button" className="text-button" onClick={() => onRemove(person.id)}>
-                Remove
+            <li key={person.id} className="person-tab">
+              <span>{person.name}</span>
+              <button type="button" className="tab-x" aria-label={`Remove ${person.name}`} onClick={() => onRemove(person.id)}>
+                ×
               </button>
             </li>
           ))}

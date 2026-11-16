@@ -11,7 +11,7 @@ type SummaryStepProps = {
   onReset: () => void;
 };
 
-export function SummaryStep({ symbol, items, people, result, onBack, onReset }: SummaryStepProps) {
+export function SummaryStep({ symbol, items, result, onBack, onReset }: SummaryStepProps) {
   const mark = symbol || "$";
   const covered =
     result.unassignedItemsCents === 0 && result.unallocatedExtrasCents === 0 && result.peopleTotalCents === result.billTotalCents;
@@ -23,19 +23,18 @@ export function SummaryStep({ symbol, items, people, result, onBack, onReset }: 
         <p>Tax and fees follow each person’s share of the items.</p>
       </div>
 
-      <div className="summary-grid">
+      <div className="summary-slips">
         {result.people.map((row) => {
-          const person = people.find((entry) => entry.id === row.personId);
           return (
-            <article key={row.personId} className="summary-card" style={{ borderTopColor: person?.color ?? "#1f6f4a" }}>
-              <header>
-                <h3>{row.name || "Someone"}</h3>
+            <section key={row.personId} className="person-slip">
+              <h3 className="person-tab is-static">
+                <span>{row.name || "Someone"}</span>
                 <strong>{formatMoney(row.totalCents, mark)}</strong>
-              </header>
+              </h3>
               {row.items.length === 0 && row.extras.length === 0 ? (
                 <p className="empty">Nothing assigned.</p>
               ) : (
-                <ul>
+                <ul className="summary-lines">
                   {row.items.map((share) => {
                     const source = items.find((item) => item.id === share.itemId);
                     const fraction = shareLabel(share.weight, share.weightTotal);
@@ -63,7 +62,7 @@ export function SummaryStep({ symbol, items, people, result, onBack, onReset }: 
                   </li>
                 </ul>
               )}
-            </article>
+            </section>
           );
         })}
       </div>
