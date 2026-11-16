@@ -1,4 +1,4 @@
-const MODEL = "gpt-4o-mini";
+const MODEL = "nvidia/nemotron-3.5-super-vl:free";
 
 const INSTRUCTIONS = `You read a photo of a restaurant receipt and return only JSON with this shape:
 {
@@ -20,8 +20,48 @@ Rules:
 - All money fields are integers in cents.
 - If a line is unreadable, omit it. Do not invent items.`;
 
+function messageText(message) {
+  const content = message?.content;
+  if (typeof content === "string" && content.trim()) return content;
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => (typeof part === "string" ? part : part?.text || ""))
+      .join("")
+      .trim();
+    if (text) return text;
+  }
+  return typeof message?.reasoning === "string" ? message.reasoning : "";
+}
+
+function parseModelJson(text) {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // The model sometimes wraps the object in prose or a fence.
+  }
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1]);
+    } catch {
+      // Fall through to a raw object slice.
+    }
+  }
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export async function readReceipt(image, env = process.env) {
-  const key = typeof env?.OPENAI_API_KEY === "string" ? env.OPENAI_API_KEY.trim() : "";
+  const key = typeof env?.OPENROUTER_API_KEY === "string" ? env.OPENROUTER_API_KEY.trim() : "";
   if (!key) return { status: 503, body: { error: "missing_key" } };
   if (typeof image !== "string" || !image.startsWith("data:image/")) {
     return { status: 400, body: { error: "bad_image" } };
@@ -30,11 +70,13 @@ export async function readReceipt(image, env = process.env) {
 
   let upstream;
   try {
-    upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+    upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://mody-b.github.io/billify-reciept-app/",
+        "X-Title": "Splitit",
       },
       body: JSON.stringify({
         model: MODEL,
@@ -63,9 +105,10 @@ export async function readReceipt(image, env = process.env) {
 
   try {
     const payload = await upstream.json();
-    const text = payload?.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || !text.trim()) return { status: 422, body: { error: "empty" } };
-    return { status: 200, body: JSON.parse(text) };
+    const text = messageText(payload?.choices?.[0]?.message);
+    const parsed = text ? parseModelJson(text) : null;
+    if (!parsed || typeof parsed !== "object") return { status: 422, body: { error: "empty" } };
+    return { status: 200, body: parsed };
   } catch {
     return { status: 502, body: { error: "upstream" } };
   }

@@ -20,9 +20,9 @@ describe("classifyReadResponse", () => {
 });
 
 describe("explainReadFailure", () => {
-  it("names OPENAI_API_KEY when the key is missing", () => {
+  it("names OPENROUTER_API_KEY when the key is missing", () => {
     const message = explainReadFailure("missing_key", pages);
-    expect(message).toContain("OPENAI_API_KEY");
+    expect(message).toContain("OPENROUTER_API_KEY");
     expect(message).not.toContain("couldn't be read");
   });
 
@@ -30,7 +30,7 @@ describe("explainReadFailure", () => {
     const message = explainReadFailure("not_deployed", pages);
     expect(message).toContain(pages);
     expect(message).toContain("api/read-receipt");
-    expect(message).toContain("OPENAI_API_KEY");
+    expect(message).toContain("OPENROUTER_API_KEY");
     expect(message).toContain("GitHub Pages");
     expect(message).not.toContain("couldn't be read");
   });

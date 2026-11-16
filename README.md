@@ -25,14 +25,12 @@ npm run preview
 
 ## Hosting
 
-The live site is https://mody-b.github.io/billify-reciept-app/. That host is GitHub Pages. The workflow in `.github/workflows/pages.yml` uploads only the static `dist` folder, so `POST /api/read-receipt` is rejected (HTTP 405). Photos cannot be read there.
+The live site is https://mody-b.github.io/billify-reciept-app/. That host is GitHub Pages. The workflow in `.github/workflows/pages.yml` uploads only the static `dist` folder, so `POST /api/read-receipt` is rejected there (HTTP 405) and the photo has to be typed in.
 
-To read photos, deploy this repo on Vercel so `api/read-receipt.js` runs, and set the server env var `OPENAI_API_KEY`. Do not prefix it with `VITE_` and do not commit a value. A Vercel project name has not been chosen yet. `npm run dev` runs the same function locally and reports a missing key when `OPENAI_API_KEY` is unset.
-
-The function calls OpenAI `gpt-4o-mini`. The photo stays on the check screen so you can correct a line in one tap.
+The receipt reader is `api/read-receipt.js`. It calls the free OpenRouter vision model `nvidia/nemotron-3.5-super-vl:free` and reads the key from the server environment variable `OPENROUTER_API_KEY`. Put that variable in the Vercel project settings. Do not prefix it with `VITE_` and do not commit a value. Without the key, or if a photo cannot be read, type the items by hand. The photo stays on the check screen so you can correct a line in one tap.
 
 ## Receipt reader limits
 
-- The model is `gpt-4o-mini`. Blurry, crumpled, or handwritten receipts can still miss a line.
+- The model is the free OpenRouter model `nvidia/nemotron-3.5-super-vl:free`. Blurry, crumpled, or handwritten receipts can still miss a line, and the free route can be rate-limited.
 - The check screen is how you make the bill exact: the photo sits beside the lines, and a tap opens that line.
 - Hand entry works with no key and no network.

@@ -12,10 +12,38 @@ describe("readReceipt", () => {
 
   it("rejects a payload that is not an image data url", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const result = await readReceipt("not-a-photo", { OPENAI_API_KEY: "present" });
+    const result = await readReceipt("not-a-photo", { OPENROUTER_API_KEY: "present" });
     expect(result.status).toBe(400);
     expect(result.body.error).toBe("bad_image");
     expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("ignores an OpenAI key and does not call OpenAI", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const result = await readReceipt("data:image/jpeg;base64,abc", { OPENAI_API_KEY: "present" });
+    expect(result).toEqual({ status: 503, body: { error: "missing_key" } });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("sends the photo to the free OpenRouter vision model", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: '{"items":[{"name":"Soup","quantity":1,"priceCents":600}]}' } }],
+      }),
+    });
+    const result = await readReceipt("data:image/jpeg;base64,abc", { OPENROUTER_API_KEY: "present" });
+    expect(result.status).toBe(200);
+    expect(result.body.items[0].name).toBe("Soup");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(init.headers.Authorization).toBe("Bearer present");
+    expect(JSON.parse(init.body).model).toBe("nvidia/nemotron-3.5-super-vl:free");
+    expect(url).not.toContain("openai.com");
     fetchSpy.mockRestore();
   });
 });
