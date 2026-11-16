@@ -499,6 +499,23 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
   background: transparent;
 }
 
+.install-prompt {
+  margin-top: 14px;
+  padding: 12px 12px 4px;
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+.install-prompt p {
+  margin: 0;
+  text-align: center;
+}
+.install-actions {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
 .drag-ghost {
   position: fixed;
   z-index: 5;

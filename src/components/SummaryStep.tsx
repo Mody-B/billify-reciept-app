@@ -1,3 +1,4 @@
+import { InstallPrompt } from "./InstallPrompt";
 import { formatMoney, shareLabel } from "../money";
 import type { SplitResult } from "../split/splitBill";
 import type { Item, Person } from "../types";
@@ -89,7 +90,10 @@ export function SummaryStep({ symbol, items, result, onBack, onReset }: SummaryS
           <strong data-testid="grand-total">{formatMoney(result.billTotalCents, mark)}</strong>
         </div>
         {covered ? (
-          <p className="ok">These totals add up to the bill exactly.</p>
+          <>
+            <p className="ok">These totals add up to the bill exactly.</p>
+            <InstallPrompt />
+          </>
         ) : (
           <p className="flag" role="status">
             {result.unassignedItems.length > 0
