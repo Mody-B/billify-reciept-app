@@ -157,6 +157,16 @@ function mergeAssignments(
   return [...weights.entries()].map(([personId, weight]) => ({ personId, weight }));
 }
 
+/** Divide a whole bill, tax and extras included, into `count` integer-cent shares. */
+export function splitEvenly(totalCents: number, count: number): number[] {
+  const people = Math.trunc(count);
+  if (!Number.isFinite(people) || people < 1) return [];
+  return allocateCents(
+    totalCents,
+    Array.from({ length: people }, () => 1),
+  );
+}
+
 export function splitBill(input: SplitInput): SplitResult {
   const people = input.people;
   const knownIds = new Set(people.map((person) => person.id));

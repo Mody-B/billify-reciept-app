@@ -23,7 +23,7 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
     <section className="step-panel" aria-labelledby="people-title">
       <div className="step-copy">
         <h2 id="people-title">Who’s splitting?</h2>
-        <p>Type a name and tap Add. Then you’ll put items on them.</p>
+        <p>Type a name and tap Add. Then you’ll drag items onto them, or split the bill evenly.</p>
       </div>
 
       <form
@@ -49,7 +49,7 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
       </form>
 
       {people.length === 0 ? (
-        <p className="empty">No one yet. Add at least one person to continue.</p>
+        <p className="empty">No names yet. Continue to split the bill evenly, or add someone to drag items.</p>
       ) : (
         <ul className="name-tabs">
           {people.map((person) => (
@@ -68,7 +68,6 @@ export function PeopleStep({ people, onAdd, onRemove, onBack, onNext }: PeopleSt
           type="button"
           className="button"
           data-testid="continue"
-          disabled={people.length === 0}
           onClick={onNext}
         >
           Next: assign items

@@ -8,22 +8,40 @@ type SummaryStepProps = {
   items: Item[];
   people: Person[];
   result: SplitResult;
+  evenShares: number[] | null;
   onBack: () => void;
   onReset: () => void;
 };
 
-export function SummaryStep({ symbol, items, result, onBack, onReset }: SummaryStepProps) {
+export function SummaryStep({ symbol, items, result, evenShares, onBack, onReset }: SummaryStepProps) {
   const mark = symbol || "$";
-  const covered =
-    result.unassignedItemsCents === 0 && result.unallocatedExtrasCents === 0 && result.peopleTotalCents === result.billTotalCents;
+  const evenTotal = evenShares?.reduce((sum, share) => sum + share, 0) ?? 0;
+  const even = evenShares != null && evenShares.length > 0;
+  const covered = even
+    ? evenTotal === result.billTotalCents
+    : result.unassignedItemsCents === 0 && result.unallocatedExtrasCents === 0 && result.peopleTotalCents === result.billTotalCents;
 
   return (
     <section className="step-panel" aria-labelledby="summary-title">
       <div className="step-copy">
         <h2 id="summary-title">Who pays what</h2>
-        <p>Tax and fees follow each person’s share of the items.</p>
+        <p>{even ? "The whole bill, including tax and extras, divided evenly." : "Tax and fees follow each person’s share of the items."}</p>
       </div>
 
+      {even && evenShares ? (
+        <ul className="summary-lines even-shares">
+          {evenShares.map((cents, index) => (
+            <li key={index}>
+              <span>{index + 1}</span>
+              <span>{formatMoney(cents, mark)}</span>
+            </li>
+          ))}
+          <li className="line-total">
+            <span>Total</span>
+            <span>{formatMoney(evenTotal, mark)}</span>
+          </li>
+        </ul>
+      ) : (
       <div className="summary-slips">
         {result.people.map((row) => {
           return (
@@ -67,19 +85,20 @@ export function SummaryStep({ symbol, items, result, onBack, onReset }: SummaryS
           );
         })}
       </div>
+      )}
 
       <div className="receipt-box">
         <div className="total-row">
           <span>People together</span>
-          <strong>{formatMoney(result.peopleTotalCents, mark)}</strong>
+          <strong>{formatMoney(even ? evenTotal : result.peopleTotalCents, mark)}</strong>
         </div>
-        {result.unassignedItemsCents !== 0 && (
+        {!even && result.unassignedItemsCents !== 0 && (
           <div className="total-row">
             <span>Still unassigned</span>
             <strong>{formatMoney(result.unassignedItemsCents, mark)}</strong>
           </div>
         )}
-        {result.unallocatedExtrasCents !== 0 && (
+        {!even && result.unallocatedExtrasCents !== 0 && (
           <div className="total-row">
             <span>Extras not split yet</span>
             <strong>{formatMoney(result.unallocatedExtrasCents, mark)}</strong>
@@ -96,7 +115,7 @@ export function SummaryStep({ symbol, items, result, onBack, onReset }: SummaryS
           </>
         ) : (
           <p className="flag" role="status">
-            {result.unassignedItems.length > 0
+            {!even && result.unassignedItems.length > 0
               ? `Still open: ${result.unassignedItems.map((item) => item.name || "Item").join(", ")}. Assign them and the people will cover the full bill.`
               : "Assign the remaining extras by giving someone an item."}
           </p>

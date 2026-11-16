@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allocateCents, splitBill, type SplitInput } from "./splitBill";
+import { allocateCents, splitBill, splitEvenly, type SplitInput } from "./splitBill";
 
 const alex = { id: "alex", name: "Alex" };
 const sam = { id: "sam", name: "Sam" };
@@ -28,6 +28,23 @@ describe("allocateCents", () => {
 
   it("ignores non-positive weights", () => {
     expect(allocateCents(80, [0, 1, -2])).toEqual([0, 80, 0]);
+  });
+});
+
+describe("splitEvenly", () => {
+  it("divides the whole bill, including tax and extras, into exact cent shares", () => {
+    const billCents = 1000 + 50 + 1;
+    const shares = splitEvenly(billCents, 3);
+    expect(shares).toEqual([351, 350, 350]);
+    expect(shares.reduce((sum, share) => sum + share, 0)).toBe(billCents);
+  });
+
+  it("gives an even bill identical shares", () => {
+    expect(splitEvenly(1000, 4)).toEqual([250, 250, 250, 250]);
+  });
+
+  it("returns nothing for an empty count", () => {
+    expect(splitEvenly(500, 0)).toEqual([]);
   });
 });
 

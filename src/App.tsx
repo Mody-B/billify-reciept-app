@@ -7,7 +7,7 @@ import { SummaryStep } from "./components/SummaryStep";
 import { currencyFromMark, currencySymbol, DEFAULT_CURRENCY } from "./currency";
 import { newId } from "./id";
 import { friendlyReadError, recognizeReceipt, shrinkImage, type Recognition } from "./ocr/recognize";
-import { splitBill } from "./split/splitBill";
+import { splitBill, splitEvenly } from "./split/splitBill";
 import { PERSON_COLORS, type Extra, type Item, type Person, type StepId } from "./types";
 
 function blankItem(): Item {
@@ -24,6 +24,7 @@ export default function App() {
   const [otherExtras, setOtherExtras] = useState<Extra[]>([]);
   const [detectedTotalCents, setDetectedTotalCents] = useState<number | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
+  const [evenCount, setEvenCount] = useState<number | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -166,6 +167,7 @@ export default function App() {
     setOtherExtras([]);
     setDetectedTotalCents(null);
     setPeople([]);
+    setEvenCount(null);
     setSelectedItemId(null);
     setPhotoUrl((current) => {
       if (current) URL.revokeObjectURL(current);
@@ -315,7 +317,14 @@ export default function App() {
               )
             }
             onBack={() => setStep("people")}
-            onNext={() => setStep("summary")}
+            onNext={() => {
+              setEvenCount(null);
+              setStep("summary");
+            }}
+            onEven={(count) => {
+              setEvenCount(count);
+              setStep("summary");
+            }}
           />
         )}
 
@@ -325,6 +334,7 @@ export default function App() {
             items={items}
             people={people}
             result={result}
+            evenShares={evenCount == null ? null : splitEvenly(result.billTotalCents, evenCount)}
             onBack={() => setStep("assign")}
             onReset={reset}
           />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatMoney, shareLabel } from "../money";
-import { allocateCents } from "../split/splitBill";
+import { allocateCents, splitEvenly } from "../split/splitBill";
 import type { SplitResult } from "../split/splitBill";
 import type { Item, Person } from "../types";
 
@@ -25,6 +25,7 @@ type AssignStepProps = {
   onWeight: (itemId: string, personId: string, weight: number) => void;
   onBack: () => void;
   onNext: () => void;
+  onEven: (count: number) => void;
 };
 
 function personAtPoint(x: number, y: number): string | null {
@@ -63,9 +64,14 @@ export function AssignStep({
   onWeight,
   onBack,
   onNext,
+  onEven,
 }: AssignStepProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [nudge, setNudge] = useState("");
+  const [evenText, setEvenText] = useState("2");
+  const evenCount = Number(evenText);
+  const evenReady = Number.isInteger(evenCount) && evenCount >= 1 && evenCount <= 99;
+  const evenShares = evenReady ? splitEvenly(result.billTotalCents, evenCount) : [];
   const open = items.filter((item) => item.assignments.length === 0);
   const placed = items.filter((item) => item.assignments.length > 0);
   const visual = [...open, ...placed];
@@ -171,6 +177,7 @@ export function AssignStep({
           ))}
         </div>
 
+        <div className="assign-side">
         <div className="people-tabs" aria-label="People">
           {people.map((person, index) => {
             const row = result.people.find((entry) => entry.personId === person.id);
@@ -201,6 +208,42 @@ export function AssignStep({
               </button>
             );
           })}
+        </div>
+        <form
+          className="even-split"
+          data-testid="even-split"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (evenReady) onEven(evenCount);
+          }}
+        >
+          <h3>Split evenly</h3>
+          <p className="even-note">The whole bill, including tax and extras.</p>
+          <label>
+            <span>People</span>
+            <input
+              data-testid="even-count"
+              inputMode="numeric"
+              min={1}
+              max={99}
+              value={evenText}
+              onChange={(event) => setEvenText(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+            />
+          </label>
+          {evenShares.length > 0 && (
+            <ul className="summary-lines">
+              {evenShares.map((cents, index) => (
+                <li key={index}>
+                  <span>{index + 1}</span>
+                  <span>{formatMoney(cents, symbol || "$")}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="submit" className="button secondary" data-testid="use-even-split" disabled={!evenReady}>
+            Split the bill
+          </button>
+        </form>
         </div>
       </div>
 
