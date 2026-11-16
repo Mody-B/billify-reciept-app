@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONTROL_CLEARANCE, clampPoint, floorBelowControls, flickVelocity, pickGoal, spawnPoint, stepSlide, stepToward } from "./motion";
+import { CONTROL_CLEARANCE, clampPoint, clearOfBox, floorBelowControls, flickVelocity, pickGoal, spawnPoint, stepSlide, stepToward } from "./motion";
 
 describe("receipt mascot motion", () => {
   it("reads a flick from recent pointer samples and caps the speed", () => {
@@ -61,6 +61,16 @@ describe("receipt mascot motion", () => {
     expect(blocked.point.y).toBe(bounds.minY);
     expect(clampPoint({ x: 20, y: 0 }, bounds).y).toBe(bounds.minY);
     expect(pickGoal(bounds, () => 0).y).toBeGreaterThanOrEqual(bounds.minY);
+  });
+
+  it("keeps the mascot out of the bottom-left ad", () => {
+    const bounds = { minX: 8, minY: 360, maxX: 300, maxY: 720 };
+    const size = { width: 76, height: 108 };
+    const ad = { x: 0, y: 760, width: 200, height: 70 };
+    const parked = clearOfBox({ x: 150, y: 720 }, bounds, size, ad);
+    expect(parked.x).toBeGreaterThanOrEqual(ad.x + ad.width + 20);
+    expect(parked.y).toBe(720);
+    expect(clearOfBox({ x: 220, y: 500 }, bounds, size, ad)).toEqual({ x: 220, y: 500 });
   });
 
   it("picks the next stroll inside the open floor", () => {

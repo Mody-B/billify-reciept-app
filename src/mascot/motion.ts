@@ -35,11 +35,49 @@ export function flickVelocity(samples: Sample[], now: number): Point {
   return { x, y };
 }
 
+export type Box = { x: number; y: number; width: number; height: number };
+
 export function clampPoint(point: Point, bounds: Bounds): Point {
   return {
     x: Math.min(bounds.maxX, Math.max(bounds.minX, point.x)),
     y: Math.min(bounds.maxY, Math.max(bounds.minY, point.y)),
   };
+}
+
+function overlaps(point: Point, size: { width: number; height: number }, box: Box, gap: number) {
+  return (
+    point.x < box.x + box.width + gap &&
+    point.x + size.width > box.x - gap &&
+    point.y < box.y + box.height + gap &&
+    point.y + size.height > box.y - gap
+  );
+}
+
+/** Slide the mascot to the nearest spot that misses a reserved box, such as the home-page ad. */
+export function clearOfBox(
+  point: Point,
+  bounds: Bounds,
+  size: { width: number; height: number },
+  box: Box | null,
+  gap = 20,
+): Point {
+  const next = clampPoint(point, bounds);
+  if (!box || !overlaps(next, size, box, gap)) return next;
+  const candidates = [
+    { x: next.x, y: box.y - gap - size.height },
+    { x: box.x + box.width + gap, y: next.y },
+  ].map((candidate) => clampPoint(candidate, bounds));
+  let best = next;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    if (overlaps(candidate, size, box, gap)) continue;
+    const dist = Math.hypot(candidate.x - next.x, candidate.y - next.y);
+    if (dist < bestDist) {
+      best = candidate;
+      bestDist = dist;
+    }
+  }
+  return best;
 }
 
 export function stepSlide(

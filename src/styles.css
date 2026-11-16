@@ -136,6 +136,27 @@ button { cursor: pointer; }
   padding-bottom: 48px;
 }
 
+.home-support {
+  position: absolute;
+  left: 0;
+  bottom: 8px;
+  z-index: 3;
+  width: 200px;
+  max-width: 46%;
+}
+.home-support p {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+.home-support .adsbygoogle {
+  display: inline-block;
+  width: 200px;
+  max-width: 100%;
+  height: 50px;
+}
+
 .button,
 .text-button,
 .icon-button {

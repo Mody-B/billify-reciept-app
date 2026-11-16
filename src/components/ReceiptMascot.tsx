@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { clampPoint, flickVelocity, floorBelowControls, pickGoal, spawnPoint, stepSlide, stepToward, type Sample, type StageBounds } from "../mascot/motion";
+import { clearOfBox, flickVelocity, floorBelowControls, pickGoal, spawnPoint, stepSlide, stepToward, type Box, type Sample, type StageBounds } from "../mascot/motion";
 
 const WIDTH = 76;
 const HEIGHT = 108;
@@ -33,6 +33,7 @@ function prefersStill() {
 export function ReceiptMascot() {
   const nodeRef = useRef<HTMLDivElement>(null);
   const boundsRef = useRef<StageBounds | null>(null);
+  const obstacleRef = useRef<Box | null>(null);
   const bodyRef = useRef<Body>({
     point: { x: 0, y: 0 },
     velocity: { x: 0, y: 0 },
@@ -57,29 +58,43 @@ export function ReceiptMascot() {
       const width = stage.clientWidth;
       const height = stage.clientHeight;
       if (width < WIDTH || height < HEIGHT) return;
-      const stageTop = stage.getBoundingClientRect().top;
+      const stageRect = stage.getBoundingClientRect();
       let controlBottom = 0;
       stage.querySelectorAll("button, a").forEach((control) => {
-        const bottom = control.getBoundingClientRect().bottom - stageTop;
+        if (control.closest(".home-support")) return;
+        const bottom = control.getBoundingClientRect().bottom - stageRect.top;
         if (bottom > controlBottom) controlBottom = bottom;
       });
+      const ad = stage.querySelector(".home-support");
+      obstacleRef.current =
+        ad instanceof HTMLElement
+          ? {
+              x: ad.getBoundingClientRect().left - stageRect.left,
+              y: ad.getBoundingClientRect().top - stageRect.top,
+              width: ad.offsetWidth,
+              height: ad.offsetHeight,
+            }
+          : null;
       const bounds: StageBounds = floorBelowControls(controlBottom, { width, height }, { width: WIDTH, height: HEIGHT });
       boundsRef.current = bounds;
       const body = bodyRef.current;
+      const place = (point: { x: number; y: number }) => clearOfBox(point, bounds, { width: WIDTH, height: HEIGHT }, obstacleRef.current);
       if (!placedRef.current) {
         placedRef.current = true;
-        body.point = spawnPoint(bounds);
-        body.goal = pickGoal(bounds);
+        body.point = place(spawnPoint(bounds));
+        body.goal = place(pickGoal(bounds));
         body.pauseUntil = performance.now() + 700;
       } else {
-        body.point = clampPoint(body.point, bounds);
-        body.goal = clampPoint(body.goal, bounds);
+        body.point = place(body.point);
+        body.goal = place(body.goal);
       }
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(stage);
+    const ad = stage.querySelector(".home-support");
+    if (ad) observer.observe(ad);
 
     let frame = 0;
     let last = performance.now();
@@ -88,9 +103,14 @@ export function ReceiptMascot() {
       last = now;
       const bounds = boundsRef.current;
       const body = bodyRef.current;
+      const place = (point: { x: number; y: number }) =>
+        bounds ? clearOfBox(point, bounds, { width: WIDTH, height: HEIGHT }, obstacleRef.current) : point;
       if (bounds && body.mode === "fly") {
         const next = stepSlide(body.point, body.velocity, dt, bounds);
-        body.point = next.point;
+        const cleared = place(next.point);
+        if (cleared.x !== next.point.x) next.velocity.x = 0;
+        if (cleared.y !== next.point.y) next.velocity.y = 0;
+        body.point = cleared;
         body.velocity = next.velocity;
         body.rot += body.spin * dt;
         body.spin *= Math.exp(-2.4 * dt);
@@ -104,11 +124,11 @@ export function ReceiptMascot() {
       } else if (bounds && body.mode === "walk" && !prefersStill()) {
         if (now >= body.pauseUntil) {
           const next = stepToward(body.point, body.goal, dt, WALK_SPEED, body.facing);
-          body.point = next.point;
+          body.point = place(next.point);
           body.facing = next.facing;
           if (next.arrived) {
             body.pauseUntil = now + 900;
-            body.goal = pickGoal(bounds);
+            body.goal = place(pickGoal(bounds));
           }
         }
       }
@@ -155,12 +175,14 @@ export function ReceiptMascot() {
     const box = stageBox();
     const bounds = boundsRef.current;
     if (!box || !bounds) return;
-    body.point = clampPoint(
+    body.point = clearOfBox(
       {
         x: event.clientX - box.left - grabRef.current.dx,
         y: event.clientY - box.top - grabRef.current.dy,
       },
       bounds,
+      { width: WIDTH, height: HEIGHT },
+      obstacleRef.current,
     );
     const samples = samplesRef.current;
     samples.push({ x: event.clientX, y: event.clientY, t: performance.now() });
@@ -179,7 +201,9 @@ export function ReceiptMascot() {
       body.mode = "walk";
       body.velocity = { x: 0, y: 0 };
       body.pauseUntil = performance.now() + 500;
-      if (boundsRef.current) body.goal = pickGoal(boundsRef.current);
+      if (boundsRef.current) {
+        body.goal = clearOfBox(pickGoal(boundsRef.current), boundsRef.current, { width: WIDTH, height: HEIGHT }, obstacleRef.current);
+      }
     }
     samplesRef.current = [];
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
