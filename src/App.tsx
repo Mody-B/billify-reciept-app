@@ -4,6 +4,7 @@ import { ReviewStep } from "./components/ReviewStep";
 import { PeopleStep } from "./components/PeopleStep";
 import { AssignStep } from "./components/AssignStep";
 import { SummaryStep } from "./components/SummaryStep";
+import { currencyFromMark, currencySymbol, DEFAULT_CURRENCY } from "./currency";
 import { newId } from "./id";
 import { friendlyReadError, recognizeReceipt, shrinkImage, type Recognition } from "./ocr/recognize";
 import { splitBill } from "./split/splitBill";
@@ -15,7 +16,7 @@ function blankItem(): Item {
 
 export default function App() {
   const [step, setStep] = useState<StepId>("capture");
-  const [symbol, setSymbol] = useState("$");
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [items, setItems] = useState<Item[]>([]);
   const [taxCents, setTaxCents] = useState(0);
   const [tipCents, setTipCents] = useState(0);
@@ -59,7 +60,7 @@ export default function App() {
     [people, items, extras],
   );
 
-  const mark = symbol.trim() || "$";
+  const mark = currencySymbol(currency);
 
   function rememberPhoto(file: File) {
     const url = URL.createObjectURL(file);
@@ -91,7 +92,7 @@ export default function App() {
       })),
     );
     setDetectedTotalCents(parsed.totalCents);
-    if (parsed.currencySymbol) setSymbol(parsed.currencySymbol);
+    if (parsed.currencySymbol) setCurrency(currencyFromMark(parsed.currencySymbol));
     setSelectedItemId(null);
   }
 
@@ -150,7 +151,7 @@ export default function App() {
     setReading(false);
     setReadError(null);
     setStep("capture");
-    setSymbol("$");
+    setCurrency(DEFAULT_CURRENCY);
     setItems([]);
     setTaxCents(0);
     setTipCents(0);
@@ -194,7 +195,8 @@ export default function App() {
 
         {step === "review" && (
           <ReviewStep
-            symbol={symbol}
+            symbol={mark}
+            currency={currency}
             items={items}
             taxCents={taxCents}
             tipCents={tipCents}
@@ -204,7 +206,7 @@ export default function App() {
             photoUrl={photoUrl}
             reading={reading}
             note={readError}
-            onSymbol={setSymbol}
+            onCurrency={setCurrency}
             onItem={(id, patch) =>
               setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)))
             }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CurrencyPicker } from "./CurrencyPicker";
 import { newId } from "../id";
 import { formatMoney } from "../money";
 import type { Extra, Item } from "../types";
@@ -6,6 +7,7 @@ import { MoneyField } from "./MoneyField";
 
 type ReviewStepProps = {
   symbol: string;
+  currency: string;
   items: Item[];
   taxCents: number;
   tipCents: number;
@@ -15,7 +17,7 @@ type ReviewStepProps = {
   photoUrl: string | null;
   reading: boolean;
   note: string | null;
-  onSymbol: (symbol: string) => void;
+  onCurrency: (code: string) => void;
   onItem: (id: string, patch: Partial<Pick<Item, "name" | "quantity" | "priceCents">>) => void;
   onRemoveItem: (id: string) => void;
   onAddItem: (item: Item) => void;
@@ -187,18 +189,7 @@ export function ReviewStep(props: ReviewStepProps) {
         <button type="button" className="text-button" onClick={props.onAddExtra}>
           Add a fee
         </button>
-        <label className="symbol-field">
-          <span>Currency</span>
-          <input
-            aria-label="Currency symbol"
-            value={props.symbol}
-            maxLength={3}
-            onChange={(event) => props.onSymbol(event.target.value)}
-            onBlur={() => {
-              if (!props.symbol.trim()) props.onSymbol("$");
-            }}
-          />
-        </label>
+        <CurrencyPicker code={props.currency} onChange={props.onCurrency} />
         <div className="total-row grand">
           <span>Total</span>
           <strong>{formatMoney(total, mark)}</strong>
