@@ -4,6 +4,7 @@ import { newId } from "../id";
 import { formatMoney } from "../money";
 import type { Extra, Item } from "../types";
 import { MoneyField } from "./MoneyField";
+import { ReadProgress } from "./ReadProgress";
 
 type ReviewStepProps = {
   symbol: string;
@@ -58,16 +59,7 @@ export function ReviewStep(props: ReviewStepProps) {
           </figure>
         )}
         <div>
-          {props.reading && (
-            <div className="reader" role="status">
-              <div className="reader-top">
-                <strong>Reading the receipt</strong>
-              </div>
-              <div className="reader-track" aria-hidden="true">
-                <span style={{ width: "40%" }} />
-              </div>
-            </div>
-          )}
+          <ReadProgress active={props.reading} />
           {props.note && (
             <p className="flag" role="status">
               {props.note}
