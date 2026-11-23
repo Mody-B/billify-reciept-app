@@ -10,7 +10,7 @@
   --ok: #e7f3ea;
   --ok-ink: #1d5c38;
   color: var(--ink);
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, "Noto Sans Arabic", "Noto Naskh Arabic", sans-serif;
   font-size: 17px;
   line-height: 1.4;
   background: var(--desk);
@@ -238,7 +238,21 @@ button { cursor: pointer; }
   font-weight: 500;
 }
 
+.item-name { min-width: 0; overflow-wrap: anywhere; unicode-bidi: isolate; }
 .line-row .qty { color: var(--muted); font-variant-numeric: tabular-nums; }
+.price,
+.qty,
+.money,
+.money-input,
+.total-row strong,
+.assign-select strong,
+.summary-lines li span:last-child,
+.person-tab strong,
+.money-prefix {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
 .price,
 .money,
 .total-row strong,
@@ -247,7 +261,6 @@ button { cursor: pointer; }
 .person-tab strong,
 .money-prefix {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 .line-row .price,
@@ -399,7 +412,7 @@ button.person-tab { cursor: pointer; }
 .person-tab[aria-pressed="true"] { background: #fffdf8; }
 .person-tab.is-over { outline: 2px solid var(--ink); outline-offset: 2px; }
 h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
-.person-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-name { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
 .person-key { color: var(--muted); font-size: 0.75rem; font-weight: 500; }
 .tab-x {
   min-height: 32px;
@@ -465,7 +478,8 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
 }
 .assign-select {
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   justify-content: space-between;
   gap: 8px;
   text-align: left;
@@ -504,7 +518,8 @@ h3.person-tab { margin: 0 0 4px; font-size: 1rem; }
 
 .summary-slips { display: grid; gap: 14px; margin-top: 12px; }
 .summary-lines { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 6px; }
-.summary-lines li { display: flex; justify-content: space-between; gap: 10px; }
+.summary-lines li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.summary-lines li > bdi, .summary-lines li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .summary-lines em { font-style: normal; color: var(--muted); }
 .line-total { border-top: 1px dashed var(--line); padding-top: 6px; font-weight: 700; }
 

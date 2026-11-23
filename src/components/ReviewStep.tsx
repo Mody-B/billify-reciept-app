@@ -9,6 +9,7 @@ import { ReadProgress } from "./ReadProgress";
 
 type ReviewStepProps = {
   symbol: string;
+  fractionDigits: number;
   currency: string;
   items: Item[];
   taxCents: number;
@@ -20,7 +21,7 @@ type ReviewStepProps = {
   reading: boolean;
   note: string | null;
   onCurrency: (code: string) => void;
-  onItem: (id: string, patch: Partial<Pick<Item, "name" | "quantity" | "priceCents">>) => void;
+  onItem: (id: string, patch: Partial<Pick<Item, "name" | "quantity" | "priceCents" | "needsCheck">>) => void;
   onRemoveItem: (id: string) => void;
   onAddItem: (item: Item) => void;
   onTax: (cents: number) => void;
@@ -36,6 +37,7 @@ type ReviewStepProps = {
 export function ReviewStep(props: ReviewStepProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const mark = props.symbol || "$";
+  const digits = props.fractionDigits;
   const subtotal = props.items.reduce((sum, item) => sum + lineTotalCents(item.quantity, item.priceCents), 0);
   const extras =
     props.taxCents +
@@ -75,9 +77,10 @@ export function ReviewStep(props: ReviewStepProps) {
                       <span>Item</span>
                       <input
                         autoFocus
+                        dir="auto"
                         value={item.name}
                         aria-label={`Item ${index + 1} name`}
-                        onChange={(event) => props.onItem(item.id, { name: event.target.value })}
+                        onChange={(event) => props.onItem(item.id, { name: event.target.value, needsCheck: false })}
                       />
                     </label>
                     <label>
@@ -88,7 +91,7 @@ export function ReviewStep(props: ReviewStepProps) {
                         max={99}
                         maxDigits={2}
                         ariaLabel={`Item ${index + 1} quantity`}
-                        onCommit={(quantity) => props.onItem(item.id, { quantity })}
+                        onCommit={(quantity) => props.onItem(item.id, { quantity, needsCheck: false })}
                       />
                     </label>
                     <MoneyField
@@ -96,12 +99,14 @@ export function ReviewStep(props: ReviewStepProps) {
                       label="Each"
                       cents={item.priceCents}
                       symbol={props.symbol}
-                      onChange={(priceCents) => props.onItem(item.id, { priceCents })}
+                      fractionDigits={digits}
+                      onChange={(priceCents) => props.onItem(item.id, { priceCents, needsCheck: false })}
                     />
                   </div>
                   {item.quantity > 1 && (
-                    <p className="even-note">Line {formatMoney(lineTotalCents(item.quantity, item.priceCents), mark)}</p>
+                    <p className="even-note">Line {formatMoney(lineTotalCents(item.quantity, item.priceCents), mark, digits)}</p>
                   )}
+                  {item.needsCheck && <p className="flag">Quantity and the printed line total don't match. Check this line.</p>}
                   <div className="edit-actions">
                     <button
                       type="button"
@@ -119,17 +124,19 @@ export function ReviewStep(props: ReviewStepProps) {
                   </div>
                 </article>
               ) : (
-                <button
-                  type="button"
-                  className="line-row"
-                  key={item.id}
-                  data-testid="edit-item"
-                  onClick={() => setEditingId(item.id)}
-                >
-                  <span className="qty">{item.quantity > 1 ? `${item.quantity}×` : ""}</span>
-                  <span>{item.name || "Untitled item"}</span>
-                  <span className="price">{formatMoney(lineTotalCents(item.quantity, item.priceCents), mark)}</span>
-                </button>
+                <div key={item.id}>
+                  <button
+                    type="button"
+                    className="line-row"
+                    data-testid="edit-item"
+                    onClick={() => setEditingId(item.id)}
+                  >
+                    <span className="qty" dir="ltr">{item.quantity > 1 ? `${item.quantity}×` : ""}</span>
+                    <bdi className="item-name" dir="auto">{item.name || "Untitled item"}</bdi>
+                    <span className="price" dir="ltr">{formatMoney(lineTotalCents(item.quantity, item.priceCents), mark, digits)}</span>
+                  </button>
+                  {item.needsCheck && <p className="flag">Quantity and the printed line total don't match. Check this line.</p>}
+                </div>
               ),
             )}
           </div>
@@ -151,17 +158,18 @@ export function ReviewStep(props: ReviewStepProps) {
       <div className="receipt-box">
         <div className="total-row">
           <span>Subtotal</span>
-          <strong>{formatMoney(subtotal, mark)}</strong>
+          <strong dir="ltr">{formatMoney(subtotal, mark, digits)}</strong>
         </div>
         <div className="extra-list">
-          <MoneyField id="tax" label="Tax" cents={props.taxCents} symbol={props.symbol} onChange={props.onTax} />
-          <MoneyField id="tip" label="Tip" cents={props.tipCents} symbol={props.symbol} onChange={props.onTip} />
-          <MoneyField id="service" label="Service" cents={props.serviceCents} symbol={props.symbol} onChange={props.onService} />
+          <MoneyField id="tax" label="Tax" cents={props.taxCents} symbol={props.symbol} fractionDigits={digits} onChange={props.onTax} />
+          <MoneyField id="tip" label="Tip" cents={props.tipCents} symbol={props.symbol} fractionDigits={digits} onChange={props.onTip} />
+          <MoneyField id="service" label="Service" cents={props.serviceCents} symbol={props.symbol} fractionDigits={digits} onChange={props.onService} />
           {props.otherExtras.map((extra) => (
             <div className="other-extra" key={extra.id}>
               <label>
                 <span>Fee</span>
                 <input
+                  dir="auto"
                   value={extra.label}
                   aria-label="Fee name"
                   onChange={(event) => props.onExtra(extra.id, { label: event.target.value })}
@@ -172,6 +180,7 @@ export function ReviewStep(props: ReviewStepProps) {
                 label="Amount"
                 cents={extra.amountCents}
                 symbol={props.symbol}
+                fractionDigits={digits}
                 onChange={(amountCents) => props.onExtra(extra.id, { amountCents })}
               />
               <button type="button" className="icon-button" aria-label={`Delete ${extra.label || "fee"}`} onClick={() => props.onRemoveExtra(extra.id)}>
@@ -186,18 +195,18 @@ export function ReviewStep(props: ReviewStepProps) {
         <CurrencyPicker code={props.currency} onChange={props.onCurrency} />
         <div className="total-row grand">
           <span>Total</span>
-          <strong>{formatMoney(total, mark)}</strong>
+          <strong dir="ltr">{formatMoney(total, mark, digits)}</strong>
         </div>
         {props.detectedTotalCents != null && (
           <div className="total-row muted">
             <span>Printed total</span>
-            <span className="money">{formatMoney(props.detectedTotalCents, mark)}</span>
+            <span className="money" dir="ltr">{formatMoney(props.detectedTotalCents, mark, digits)}</span>
           </div>
         )}
         {delta === 0 && <p className="ok">Matches the printed total.</p>}
         {delta != null && delta !== 0 && (
           <p className="flag" role="alert">
-            Off by {formatMoney(Math.abs(delta), mark)} from the printed total. Tap a line to fix it.
+            Off by {formatMoney(Math.abs(delta), mark, digits)} from the printed total. Tap a line to fix it.
           </p>
         )}
       </div>

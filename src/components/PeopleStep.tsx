@@ -67,6 +67,7 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
               <span>Name</span>
               <input
                 data-testid="person-name"
+                dir="auto"
                 value={name}
                 placeholder="Alex"
                 maxLength={40}
@@ -89,7 +90,7 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
             <ul className="name-tabs">
               {people.map((person) => (
                 <li key={person.id} className="person-tab">
-                  <span>{person.name}</span>
+                  <bdi className="item-name" dir="auto">{person.name}</bdi>
                   <button type="button" className="tab-x" aria-label={`Remove ${person.name}`} onClick={() => onRemove(person.id)}>
                     ×
                   </button>
@@ -111,6 +112,7 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
             <span>People</span>
             <input
               data-testid="even-count"
+              dir="ltr"
               inputMode="numeric"
               min={1}
               max={99}

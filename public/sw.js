@@ -1,4 +1,4 @@
-const CACHE = "splitit-v2";
+const CACHE = "splitit-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

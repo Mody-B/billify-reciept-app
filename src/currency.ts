@@ -8,7 +8,7 @@ export const DEFAULT_CURRENCY = "USD";
 
 /** Labels only. Amounts are never converted between these. */
 export const CURRENCIES: readonly Currency[] = [
-  { code: "AED", name: "UAE dirham", symbol: "DH" },
+  { code: "AED", name: "UAE dirham", symbol: "د.إ" },
   { code: "AFN", name: "Afghan afghani", symbol: "؋" },
   { code: "ALL", name: "Albanian lek", symbol: "L" },
   { code: "AMD", name: "Armenian dram", symbol: "֏" },
@@ -47,7 +47,7 @@ export const CURRENCIES: readonly Currency[] = [
   { code: "DKK", name: "Danish krone", symbol: "kr" },
   { code: "DOP", name: "Dominican peso", symbol: "RD$" },
   { code: "DZD", name: "Algerian dinar", symbol: "DA" },
-  { code: "EGP", name: "Egyptian pound", symbol: "E£" },
+  { code: "EGP", name: "Egyptian pound", symbol: "ج.م" },
   { code: "ERN", name: "Eritrean nakfa", symbol: "Nfk" },
   { code: "ETB", name: "Ethiopian birr", symbol: "Br" },
   { code: "EUR", name: "Euro", symbol: "€" },
@@ -68,11 +68,11 @@ export const CURRENCIES: readonly Currency[] = [
   { code: "IDR", name: "Indonesian rupiah", symbol: "Rp" },
   { code: "ILS", name: "Israeli shekel", symbol: "₪" },
   { code: "INR", name: "Indian rupee", symbol: "₹" },
-  { code: "IQD", name: "Iraqi dinar", symbol: "ID" },
+  { code: "IQD", name: "Iraqi dinar", symbol: "د.ع" },
   { code: "IRR", name: "Iranian rial", symbol: "Rl" },
   { code: "ISK", name: "Icelandic króna", symbol: "kr" },
   { code: "JMD", name: "Jamaican dollar", symbol: "J$" },
-  { code: "JOD", name: "Jordanian dinar", symbol: "JD" },
+  { code: "JOD", name: "Jordanian dinar", symbol: "د.أ" },
   { code: "JPY", name: "Japanese yen", symbol: "¥" },
   { code: "KES", name: "Kenyan shilling", symbol: "KSh" },
   { code: "KGS", name: "Kyrgyzstani som", symbol: "с" },
@@ -80,11 +80,11 @@ export const CURRENCIES: readonly Currency[] = [
   { code: "KMF", name: "Comorian franc", symbol: "CF" },
   { code: "KPW", name: "North Korean won", symbol: "₩" },
   { code: "KRW", name: "South Korean won", symbol: "₩" },
-  { code: "KWD", name: "Kuwaiti dinar", symbol: "KD" },
+  { code: "KWD", name: "Kuwaiti dinar", symbol: "د.ك" },
   { code: "KYD", name: "Cayman Islands dollar", symbol: "CI$" },
   { code: "KZT", name: "Kazakhstani tenge", symbol: "₸" },
   { code: "LAK", name: "Lao kip", symbol: "₭" },
-  { code: "LBP", name: "Lebanese pound", symbol: "L£" },
+  { code: "LBP", name: "Lebanese pound", symbol: "ل.ل" },
   { code: "LKR", name: "Sri Lankan rupee", symbol: "Rs" },
   { code: "LRD", name: "Liberian dollar", symbol: "L$" },
   { code: "LSL", name: "Lesotho loti", symbol: "L" },
@@ -117,12 +117,12 @@ export const CURRENCIES: readonly Currency[] = [
   { code: "PKR", name: "Pakistani rupee", symbol: "Rs" },
   { code: "PLN", name: "Polish złoty", symbol: "zł" },
   { code: "PYG", name: "Paraguayan guaraní", symbol: "₲" },
-  { code: "QAR", name: "Qatari riyal", symbol: "QR" },
+  { code: "QAR", name: "Qatari riyal", symbol: "ر.ق" },
   { code: "RON", name: "Romanian leu", symbol: "lei" },
   { code: "RSD", name: "Serbian dinar", symbol: "din" },
   { code: "RUB", name: "Russian ruble", symbol: "₽" },
   { code: "RWF", name: "Rwandan franc", symbol: "FRw" },
-  { code: "SAR", name: "Saudi riyal", symbol: "SR" },
+  { code: "SAR", name: "Saudi riyal", symbol: "ر.س" },
   { code: "SBD", name: "Solomon Islands dollar", symbol: "SI$" },
   { code: "SCR", name: "Seychellois rupee", symbol: "Rs" },
   { code: "SDG", name: "Sudanese pound", symbol: "SD£" },
@@ -133,7 +133,7 @@ export const CURRENCIES: readonly Currency[] = [
   { code: "SOS", name: "Somali shilling", symbol: "Sh" },
   { code: "SRD", name: "Surinamese dollar", symbol: "SR$" },
   { code: "STN", name: "São Tomé and Príncipe dobra", symbol: "Db" },
-  { code: "SYP", name: "Syrian pound", symbol: "LS" },
+  { code: "SYP", name: "Syrian pound", symbol: "ل.س" },
   { code: "SZL", name: "Swazi lilangeni", symbol: "E" },
   { code: "THB", name: "Thai baht", symbol: "฿" },
   { code: "TJS", name: "Tajikistani somoni", symbol: "SM" },
@@ -179,8 +179,54 @@ const MARKS: Record<string, string> = {
   "£S": "SYP",
   "S£": "SYP",
   "ل.س": "SYP",
+  "ل.س.": "SYP",
   SYP: "SYP",
+  "ر.س": "SAR",
+  SAR: "SAR",
+  "د.إ": "AED",
+  AED: "AED",
+  "د.ك": "KWD",
+  KWD: "KWD",
+  "د.أ": "JOD",
+  JOD: "JOD",
+  "ج.م": "EGP",
+  EGP: "EGP",
+  "ل.ل": "LBP",
+  LBP: "LBP",
+  "د.ع": "IQD",
+  IQD: "IQD",
+  "ر.ق": "QAR",
+  QAR: "QAR",
 };
+
+const DETECT_CURRENCY: { code: string; pattern: RegExp }[] = [
+  { code: "SYP", pattern: /ل\s*\.\s*س|ليرة\s*سورية/ },
+  { code: "SAR", pattern: /ر\s*\.\s*س|ريال\s*سعودي/ },
+  { code: "AED", pattern: /د\s*\.\s*إ|درهم\s*إمارات/ },
+  { code: "KWD", pattern: /د\s*\.\s*ك|دينار\s*كويت/ },
+  { code: "IQD", pattern: /د\s*\.\s*ع|دينار\s*عراق/ },
+  { code: "JOD", pattern: /د\s*\.\s*أ|دينار\s*أردن|دينار\s*اردن/ },
+  { code: "EGP", pattern: /ج\s*\.\s*م|جنيه\s*مصر/ },
+  { code: "LBP", pattern: /ل\s*\.\s*ل|ليرة\s*لبنانية/ },
+  { code: "QAR", pattern: /ر\s*\.\s*ق|ريال\s*قطر/ },
+];
+
+/** Minor-unit places. Dollars use 2. Jordanian and Kuwaiti dinars use 3. Syrian and Lebanese pounds use 0. */
+export function fractionDigits(code: string): number {
+  if (code === "KWD" || code === "JOD") return 3;
+  if (code === "SYP" || code === "LBP") return 0;
+  return 2;
+}
+
+export function detectCurrency(text: string): string | null {
+  for (const entry of DETECT_CURRENCY) {
+    if (entry.pattern.test(text)) return entry.code;
+  }
+  if (/دينار/.test(text)) return "JOD";
+  if (/€|\bEUR\b|يورو/.test(text)) return "EUR";
+  if (/\$|\bUSD\b|دولار/.test(text)) return "USD";
+  return null;
+}
 
 export function findCurrency(code: string): Currency {
   return BY_CODE.get(code) ?? BY_CODE.get(DEFAULT_CURRENCY)!;

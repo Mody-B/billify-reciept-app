@@ -10,6 +10,8 @@ export type Item = {
   priceCents: number;
   assignments: Assignment[];
   shareMode: "even" | "custom";
+  /** The printed quantity and line total did not agree. */
+  needsCheck?: boolean;
 };
 
 export type Extra = {

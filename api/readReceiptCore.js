@@ -1,25 +1,34 @@
 const MODEL = "nvidia/nemotron-3.5-super-vl:free";
 
-const INSTRUCTIONS = `You read a photo of a restaurant receipt and return only JSON with this shape:
+const INSTRUCTIONS = `You read a photo of a restaurant receipt. The receipt may be Arabic, English, or mixed. Return only JSON with this shape:
 {
+  "language": "ar",
+  "currency": "USD",
   "currencySymbol": "$",
-  "items": [{ "name": "string", "quantity": 1, "priceCents": 0 }],
-  "taxCents": 0,
-  "tipCents": 0,
-  "serviceCents": 0,
-  "otherFees": [{ "label": "string", "amountCents": 0 }],
-  "totalCents": null
+  "items": [{ "name": "string", "quantity": 1, "unitPriceMinor": 0, "lineTotalMinor": 0, "flagged": false }],
+  "taxMinor": 0,
+  "tipMinor": 0,
+  "serviceMinor": 0,
+  "discountMinor": 0,
+  "deliveryMinor": 0,
+  "otherFees": [{ "label": "string", "amountMinor": 0 }],
+  "subtotalMinor": null,
+  "totalMinor": null
 }
 Rules:
-- quantity is a whole number. Default 1. A printed "2" or "2x" in front of a name is the quantity.
-- priceCents is the unit price in cents, the price of one item. The line total is quantity times priceCents.
-- If the receipt prints a unit price and an extended total, put the unit price in priceCents.
-- If it prints only an extended line total, divide that total by the quantity when it divides evenly. If it does not divide evenly, set quantity to 1 and priceCents to the printed line total.
+- Do not translate. Keep every item name and fee label in the original language and spelling.
+- language is "ar", "en", or "mixed".
+- currency is an ISO code. Recognize ل.س or ليرة سورية as SYP, ر.س as SAR, د.إ as AED, د.ك as KWD, د.أ or دينار as JOD, ج.م as EGP, ل.ل as LBP, د.ع as IQD, ر.ق as QAR, $ as USD, and € as EUR.
+- Money fields are integers in minor units. USD, SAR, AED, EGP, QAR, and EUR use 2 (cents). KWD and JOD use 3 (fils). SYP and LBP use 0. 125,000 ل.س is 125000, not 125. 1.250 JOD is 1250. ١٢٫٥٠ is 12.50, never 1250.
+- quantity is a whole number. Default 1. الكمية or a printed "2" or "2x" is the quantity.
+- unitPriceMinor is the price of one item. lineTotalMinor is the printed line total. When they agree, lineTotalMinor equals quantity times unitPriceMinor.
+- If quantity times the unit price does not equal the printed line total, set flagged to true and keep both printed numbers. Do not guess, divide, or change either number.
 - Join a name that wraps onto the next line into one item.
 - Do not include the restaurant name, address, phone, date, server, table, thank-you, card brand, last four digits, approval code, or auth code.
-- Tax, VAT, GST, tip, gratuity, service charge, and fees are not items.
-- A discount or coupon is a negative otherFees amount.
-- All money fields are integers in cents.
+- These labels are not items: المجموع, الإجمالي, المجموع الكلي, الصافي, المطلوب, الضريبة, ضريبة القيمة المضافة, VAT, الخدمة, رسوم الخدمة, الإكرامية, التوصيل, Tax, VAT, GST, tip, gratuity, service charge.
+- الكمية, السعر, and العدد are column headers, not items.
+- خصم, discount, or coupon is a negative discountMinor, not an item.
+- التوصيل is deliveryMinor. A service charge is serviceMinor. A tip or الإكرامية is tipMinor.
 - If a line is unreadable, omit it. Do not invent items.`;
 
 function messageText(message) {

@@ -20,6 +20,7 @@ export function WholeNumberField({ value, min, max, maxDigits, ariaLabel, onComm
 
   return (
     <input
+      dir="ltr"
       inputMode="decimal"
       aria-label={ariaLabel}
       value={text}

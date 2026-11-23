@@ -7,10 +7,18 @@ export type OcrWord = {
   confidence?: number;
 };
 
+import { currencyFromMark, currencySymbol, detectCurrency, fractionDigits } from "../currency";
+import { foldPersonName } from "../names";
+import { normalizeDigits, toMinorUnits } from "../numerals";
+
 export type ParsedItem = {
   name: string;
   quantity: number;
+  /** Unit price in minor units. The line total is quantity × priceCents. */
   priceCents: number;
+  /** Set when the printed line total does not equal quantity × unit price. */
+  flagged?: boolean;
+  lineTotalCents?: number;
 };
 
 export type ParsedExtra = {
@@ -27,26 +35,30 @@ export type ParsedReceipt = {
   subtotalCents: number | null;
   totalCents: number | null;
   currencySymbol: string | null;
+  language?: "ar" | "en" | "mixed" | null;
 };
 
 type LineKind = "item" | "subtotal" | "tax" | "tip" | "service" | "total" | "other" | "skip";
 
-const MONEY = /^(\()?(-)?([$€£¥])?(\d{1,6})[.,](\d{2})(\))?$/;
-
-export function parseMoneyToken(token: string): { cents: number; symbol: string | null } | null {
+export function parseMoneyToken(token: string, fractionDigits = 2): { cents: number; symbol: string | null } | null {
   const trimmed = token.trim();
-  if (!trimmed || trimmed.endsWith("%")) return null;
-  const match = trimmed.match(MONEY);
-  if (!match) return null;
-  const open = Boolean(match[1]);
-  const close = Boolean(match[6]);
-  if (open !== close) return null;
-  const dollars = Number(match[4]);
-  const centsPart = Number(match[5]);
-  if (!Number.isFinite(dollars) || !Number.isFinite(centsPart)) return null;
-  let cents = dollars * 100 + centsPart;
-  if (open || match[2]) cents = -cents;
-  return { cents, symbol: match[3] ?? null };
+  if (!trimmed || trimmed.endsWith("%") || trimmed.endsWith("٪")) return null;
+  const symbol = trimmed.match(/[$€£¥]/)?.[0] ?? null;
+  const cents = tokenMinor(trimmed, fractionDigits);
+  if (cents == null) return null;
+  return { cents, symbol };
+}
+
+function tokenMinor(token: string, fractionDigits: number): number | null {
+  if (/%|٪/.test(token)) return null;
+  const core = normalizeDigits(token.replace(/ل\s*\.\s*س|ر\s*\.\s*س|د\s*\.\s*إ|د\s*\.\s*ك|د\s*\.\s*أ|ج\s*\.\s*م|ل\s*\.\s*ل|د\s*\.\s*ع|ر\s*\.\s*ق|[$€£¥]/g, ""));
+  const words = core.replace(/[\d\s.,٫٬،()\-−]/g, "");
+  if (/[A-Za-z\u0600-\u06FF]/.test(words)) return null;
+  if (!/\d/.test(core)) return null;
+  const separated = /[.,٫٬،]/.test(core);
+  const digits = normalizeDigits(core).replace(/\D/g, "");
+  if (!separated && digits.length <= 2) return null;
+  return toMinorUnits(token, fractionDigits);
 }
 
 function cleanName(value: string): string {
@@ -68,9 +80,25 @@ function normalizeLabel(value: string): string {
     .trim();
 }
 
+function classifyArabicLabel(name: string): LineKind | null {
+  if (!/[\u0600-\u06FF]/.test(name) && !/\bvat\b/i.test(name)) return null;
+  const folded = foldPersonName(name);
+  if (/^(الكميه|السعر|العدد)$/.test(folded)) return "skip";
+  if (/المجموع الكلي|الاجمالي|الصافي|المطلوب/.test(folded)) return "total";
+  if (/ضريب|القيمه المضافه|\bvat\b/.test(folded)) return "tax";
+  if (/اكرامي/.test(folded)) return "tip";
+  if (/توصيل/.test(folded)) return "other";
+  if (/خدم/.test(folded)) return "service";
+  if (/خصم/.test(folded)) return "other";
+  if (/المجموع/.test(folded)) return "subtotal";
+  return null;
+}
+
 export function classifyLine(name: string): LineKind {
+  const arabic = classifyArabicLabel(name);
+  if (arabic) return arabic;
   const label = normalizeLabel(name);
-  if (!label) return "skip";
+  if (!label) return /[\u0600-\u06FF]/.test(name) ? "item" : "skip";
   if (/^(sub ?total|subtotal|food total|item total)\b/.test(label)) return "subtotal";
   if (/^(tip|gratuity|gratuities)\b/.test(label)) return "tip";
   if (/^(service charge|service fee|svc charge|svc fee|svc|service)\b/.test(label)) return "service";
@@ -162,6 +190,8 @@ type PreparedLine = {
   quantity: number;
   cents: number;
   symbol: string | null;
+  flagged?: boolean;
+  lineCents?: number;
 };
 
 function takeQuantity(tokens: string[]): { quantity: number; rest: string[] } {
@@ -232,19 +262,30 @@ function parseLine(words: readonly OcrWord[]): PreparedLine | null {
   if (kind === "skip") return null;
 
   let cents = chosen.cents;
+  let flagged = false;
+  let lineCents: number | undefined;
   if (quantity > 1 && cents > 0) {
     const earlier = priced.length >= 2 ? priced[priced.length - 2].cents : null;
     if (earlier != null && earlier > 0 && earlier * quantity === cents) {
       cents = earlier;
     } else if (priced.length === 1 && cents % quantity === 0) {
       cents = cents / quantity;
-    } else if (priced.length >= 2) {
-      quantity = 1;
+    } else if (earlier != null && earlier > 0) {
+      flagged = true;
+      lineCents = chosen.cents;
+      cents = earlier;
+    } else {
+      flagged = true;
+      lineCents = cents;
     }
   }
-  if (kind === "other" && cents > 0 && /discount|coupon|promo/i.test(name)) cents = -cents;
+  if (kind === "other" && cents > 0 && isDiscount(name)) cents = -cents;
 
-  return { kind, name, quantity, cents, symbol: chosen.symbol };
+  return { kind, name, quantity, cents, symbol: chosen.symbol, flagged, lineCents };
+}
+
+function isDiscount(name: string): boolean {
+  return /discount|coupon|promo|خصم/i.test(foldPersonName(name));
 }
 
 function emptyReceipt(): ParsedReceipt {
@@ -292,15 +333,7 @@ export function parseReceipt(words: readonly OcrWord[]): ParsedReceipt {
     flushName(line);
   }
 
-  if (parsed.taxCents == null && parsed.subtotalCents != null && parsed.totalCents != null) {
-    const known =
-      (parsed.tipCents ?? 0) +
-      (parsed.serviceCents ?? 0) +
-      parsed.otherExtras.reduce((sum, extra) => sum + extra.amountCents, 0);
-    const inferred = parsed.totalCents - parsed.subtotalCents - known;
-    if (inferred > 0) parsed.taxCents = inferred;
-  }
-
+  inferTax(parsed);
   return parsed;
 }
 
@@ -311,6 +344,9 @@ function absorb(parsed: ParsedReceipt, prepared: PreparedLine) {
       name: prepared.name,
       quantity: prepared.quantity,
       priceCents: prepared.cents,
+      ...(prepared.flagged
+        ? { flagged: true as const, ...(prepared.lineCents != null ? { lineTotalCents: prepared.lineCents } : {}) }
+        : {}),
     });
     return;
   }
@@ -337,7 +373,114 @@ function absorb(parsed: ParsedReceipt, prepared: PreparedLine) {
   parsed.otherExtras.push({ label: prepared.name, amountCents: prepared.cents });
 }
 
+function hasArabicScript(text: string): boolean {
+  return /[\u0600-\u06FF٠-٩۰-۹]/.test(text);
+}
+
+function detectLanguage(text: string): "ar" | "en" | "mixed" {
+  const arabic = /[\u0600-\u06FF]/.test(text);
+  const latin = /[A-Za-z]/.test(text);
+  if (arabic && latin) return "mixed";
+  if (arabic) return "ar";
+  return "en";
+}
+
+function quantityToken(token: string): number | null {
+  const normalized = normalizeDigits(token).replace(/[×x]/gi, "");
+  if (!/^\d{1,2}$/.test(normalized)) return null;
+  const value = Number(normalized);
+  if (value < 1 || value > 99) return null;
+  return value;
+}
+
+function parseFlexibleLine(line: string, fractionDigits: number): PreparedLine | null {
+  const amounts: number[] = [];
+  const nameTokens: string[] = [];
+  let quantity: number | null = null;
+  for (const token of line.split(/\s+/).filter(Boolean)) {
+    const amount = tokenMinor(token, fractionDigits);
+    if (amount != null) {
+      amounts.push(amount);
+      continue;
+    }
+    const qty = quantityToken(token);
+    if (qty != null && quantity == null) {
+      quantity = qty;
+      continue;
+    }
+    if (/^(ل\.س|ر\.س|د\.إ|د\.ك|د\.أ|ج\.م|ل\.ل|د\.ع|ر\.ق|[$€£¥])$/.test(token)) continue;
+    nameTokens.push(token);
+  }
+  if (amounts.length === 0) return null;
+  const name = cleanName(nameTokens.join(" "));
+  const kind = classifyLine(name);
+  if (kind === "skip") return null;
+  if ((kind === "item" || kind === "other") && !name) return null;
+
+  const count = kind === "item" ? (quantity ?? 1) : 1;
+  let unit = amounts[0];
+  let lineTotal = amounts[amounts.length - 1];
+  let flagged = false;
+  if (kind === "item" && amounts.length >= 2) {
+    if (unit * count !== lineTotal && lineTotal * count === unit) {
+      const swap = unit;
+      unit = lineTotal;
+      lineTotal = swap;
+    } else if (unit * count !== lineTotal) {
+      flagged = true;
+    }
+  } else if (kind === "item" && count > 1 && amounts.length === 1 && unit % count === 0) {
+    lineTotal = unit;
+    unit = unit / count;
+  } else if (kind === "item" && count > 1 && amounts.length === 1) {
+    flagged = true;
+    lineTotal = unit;
+  } else {
+    unit = lineTotal;
+  }
+
+  let cents = kind === "item" ? unit : lineTotal;
+  if (kind === "other" && cents > 0 && isDiscount(name)) cents = -cents;
+  return {
+    kind,
+    name: name || (kind === "tax" ? "Tax" : kind),
+    quantity: count,
+    cents,
+    symbol: null,
+    flagged,
+    lineCents: flagged ? lineTotal : undefined,
+  };
+}
+
+function inferTax(parsed: ParsedReceipt) {
+  if (parsed.taxCents == null && parsed.subtotalCents != null && parsed.totalCents != null) {
+    const known =
+      (parsed.tipCents ?? 0) +
+      (parsed.serviceCents ?? 0) +
+      parsed.otherExtras.reduce((sum, extra) => sum + extra.amountCents, 0);
+    const inferred = parsed.totalCents - parsed.subtotalCents - known;
+    if (inferred > 0) parsed.taxCents = inferred;
+  }
+}
+
+function parseArabicReceipt(text: string): ParsedReceipt {
+  const code = detectCurrency(text);
+  const digits = fractionDigits(code ?? "USD");
+  const parsed = emptyReceipt();
+  parsed.currencySymbol = code ? currencySymbol(code) : null;
+  parsed.language = detectLanguage(text);
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const prepared = parseFlexibleLine(trimmed, digits);
+    if (prepared) absorb(parsed, prepared);
+  }
+  inferTax(parsed);
+  return parsed;
+}
+
 export function parseReceiptText(text: string): ParsedReceipt {
+  if (hasArabicScript(text)) return parseArabicReceipt(text);
   const lines = text
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -362,12 +505,12 @@ export function parseReceiptText(text: string): ParsedReceipt {
   return parseReceipt(words);
 }
 
-function asCents(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return Math.round(parsed);
+function minorValue(value: unknown, fractionDigits: number): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (Number.isInteger(value)) return Math.trunc(value);
+    return toMinorUnits(String(value), fractionDigits);
   }
+  if (typeof value === "string" && value.trim()) return toMinorUnits(value, fractionDigits);
   return null;
 }
 
@@ -380,43 +523,69 @@ export function receiptFromVision(value: unknown): ParsedReceipt | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const parsed = emptyReceipt();
-  if (typeof record.currencySymbol === "string" && record.currencySymbol.trim()) {
-    parsed.currencySymbol = record.currencySymbol.trim().slice(0, 3);
-  }
+  const codeField = typeof record.currency === "string" ? record.currency.trim().toUpperCase() : "";
+  const symbolField = typeof record.currencySymbol === "string" ? record.currencySymbol.trim() : "";
+  const code = codeField || (symbolField ? currencyFromMark(symbolField) : "");
+  const digits = fractionDigits(code || "USD");
+  if (code) parsed.currencySymbol = currencySymbol(code);
+  else if (symbolField) parsed.currencySymbol = symbolField.slice(0, 12);
+  if (record.language === "ar" || record.language === "en" || record.language === "mixed") parsed.language = record.language;
 
   const items = Array.isArray(record.items) ? record.items : [];
   for (const entry of items) {
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Record<string, unknown>;
     const name = asName(item.name);
-    const cents = asCents(item.priceCents);
-    if (!name || cents == null) continue;
-    const quantityRaw = asCents(item.quantity);
+    if (!name) continue;
+    const quantityRaw = minorValue(item.quantity, 0);
     const quantity = quantityRaw != null && quantityRaw >= 1 && quantityRaw <= 99 ? quantityRaw : 1;
+    const unit = minorValue(item.unitPriceMinor ?? item.unitPriceCents ?? item.priceCents, digits);
+    const lineTotal = minorValue(item.lineTotalMinor ?? item.lineTotalCents ?? item.lineTotal, digits);
+    let cents = unit;
+    let flagged = item.flagged === true;
+    if (cents == null && lineTotal != null) {
+      if (quantity > 1 && lineTotal % quantity === 0) cents = lineTotal / quantity;
+      else {
+        cents = lineTotal;
+        if (quantity > 1) flagged = true;
+      }
+    }
+    if (cents == null) continue;
+    if (lineTotal != null && quantity * cents !== lineTotal) flagged = true;
     absorb(parsed, {
       kind: classifyLine(name),
       name,
       quantity,
       cents,
       symbol: parsed.currencySymbol,
+      flagged,
+      lineCents: lineTotal ?? undefined,
     });
   }
 
-  const tax = asCents(record.taxCents);
-  const tip = asCents(record.tipCents);
-  const service = asCents(record.serviceCents);
-  const total = asCents(record.totalCents);
+  const tax = minorValue(record.taxMinor ?? record.taxCents, digits);
+  const tip = minorValue(record.tipMinor ?? record.tipCents, digits);
+  const service = minorValue(record.serviceMinor ?? record.serviceCents, digits);
+  const total = minorValue(record.totalMinor ?? record.totalCents, digits);
+  const subtotal = minorValue(record.subtotalMinor ?? record.subtotalCents, digits);
   if (tax != null && tax !== 0) parsed.taxCents = (parsed.taxCents ?? 0) + tax;
   if (tip != null && tip !== 0) parsed.tipCents = (parsed.tipCents ?? 0) + tip;
   if (service != null && service !== 0) parsed.serviceCents = (parsed.serviceCents ?? 0) + service;
   if (total != null) parsed.totalCents = total;
+  if (subtotal != null && parsed.subtotalCents == null) parsed.subtotalCents = subtotal;
+
+  const discount = minorValue(record.discountMinor ?? record.discountCents, digits);
+  if (discount != null && discount !== 0) {
+    const amount = discount > 0 ? -discount : discount;
+    absorb(parsed, { kind: "other", name: "Discount", quantity: 1, cents: amount, symbol: null });
+  }
 
   const fees = Array.isArray(record.otherFees) ? record.otherFees : [];
   for (const entry of fees) {
     if (!entry || typeof entry !== "object") continue;
     const fee = entry as Record<string, unknown>;
     const label = asName(fee.label) || "Fee";
-    const cents = asCents(fee.amountCents);
+    const cents = minorValue(fee.amountMinor ?? fee.amountCents, digits);
     if (cents == null || cents === 0) continue;
     absorb(parsed, { kind: classifyLine(label), name: label, quantity: 1, cents, symbol: null });
   }

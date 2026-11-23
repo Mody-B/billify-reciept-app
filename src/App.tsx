@@ -6,7 +6,8 @@ import { PeopleStep } from "./components/PeopleStep";
 import { AssignStep } from "./components/AssignStep";
 import { LegalPage } from "./components/LegalPage";
 import { SummaryStep } from "./components/SummaryStep";
-import { currencyFromMark, currencySymbol, DEFAULT_CURRENCY } from "./currency";
+import { currencyFromMark, currencySymbol, DEFAULT_CURRENCY, fractionDigits } from "./currency";
+import { foldPersonName } from "./names";
 import { clearDraft, loadDraft, saveDraft } from "./draft";
 import { newId } from "./id";
 import { legalPage } from "./legalPath";
@@ -139,6 +140,7 @@ export default function App() {
   );
 
   const mark = currencySymbol(currency);
+  const digits = fractionDigits(currency);
   const slipDate = useMemo(() => slipStamp(new Date()), []);
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -157,8 +159,9 @@ export default function App() {
       symbol: mark,
       lines: shares,
       totalCents: result.billTotalCents,
+      fractionDigits: digits,
     });
-  }, [splitMode, evenCount, result, slipDate.label, mark]);
+  }, [splitMode, evenCount, result, slipDate.label, mark, digits]);
 
   function rememberPhoto(file: File) {
     const url = URL.createObjectURL(file);
@@ -177,6 +180,7 @@ export default function App() {
         priceCents: item.priceCents,
         assignments: [],
         shareMode: "even",
+        ...(item.flagged ? { needsCheck: true } : {}),
       })),
     );
     setTaxCents(parsed.taxCents ?? 0);
@@ -272,7 +276,7 @@ export default function App() {
 
   function addPerson(name: string) {
     const trimmed = name.trim();
-    if (people.some((person) => person.name.trim().toLowerCase() === trimmed.toLowerCase())) return false;
+    if (people.some((person) => foldPersonName(person.name) === foldPersonName(trimmed))) return false;
     setPeople((current) => {
       const used = new Set(current.map((person) => person.color));
       const color = PERSON_COLORS.find((entry) => !used.has(entry)) ?? PERSON_COLORS[current.length % PERSON_COLORS.length];
@@ -311,6 +315,7 @@ export default function App() {
         {!legal && step === "review" && (
           <ReviewStep
             symbol={mark}
+            fractionDigits={digits}
             currency={currency}
             items={items}
             taxCents={taxCents}
@@ -375,6 +380,7 @@ export default function App() {
         {!legal && step === "assign" && (
           <AssignStep
             symbol={mark}
+            fractionDigits={digits}
             items={items}
             people={people}
             selectedItemId={selectedItemId}
@@ -446,6 +452,7 @@ export default function App() {
         {!legal && step === "summary" && (
           <SummaryStep
             symbol={mark}
+            fractionDigits={digits}
             items={items}
             people={people}
             result={result}

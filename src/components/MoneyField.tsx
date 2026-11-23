@@ -6,16 +6,17 @@ type MoneyFieldProps = {
   label: string;
   cents: number;
   symbol: string;
+  fractionDigits?: number;
   onChange: (cents: number) => void;
 };
 
-export function MoneyField({ id, label, cents, symbol, onChange }: MoneyFieldProps) {
-  const [text, setText] = useState(() => formatCentsForInput(cents));
+export function MoneyField({ id, label, cents, symbol, fractionDigits = 2, onChange }: MoneyFieldProps) {
+  const [text, setText] = useState(() => formatCentsForInput(cents, fractionDigits));
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
-    if (!focused) setText(formatCentsForInput(cents));
-  }, [cents, focused]);
+    if (!focused) setText(formatCentsForInput(cents, fractionDigits));
+  }, [cents, focused, fractionDigits]);
 
   return (
     <label className="money-field" htmlFor={id}>
@@ -26,6 +27,7 @@ export function MoneyField({ id, label, cents, symbol, onChange }: MoneyFieldPro
         </span>
         <input
           id={id}
+          dir="ltr"
           inputMode="decimal"
           autoComplete="off"
           value={text}
@@ -36,18 +38,18 @@ export function MoneyField({ id, label, cents, symbol, onChange }: MoneyFieldPro
           onChange={(event) => {
             const next = event.target.value;
             setText(next);
-            const live = liveMoneyCents(next);
+            const live = liveMoneyCents(next, fractionDigits);
             if (live != null) onChange(live);
           }}
           onBlur={() => {
             setFocused(false);
-            const live = liveMoneyCents(text);
+            const live = liveMoneyCents(text, fractionDigits);
             if (live == null) {
-              setText(formatCentsForInput(cents));
+              setText(formatCentsForInput(cents, fractionDigits));
               return;
             }
             onChange(live);
-            setText(formatCentsForInput(live));
+            setText(formatCentsForInput(live, fractionDigits));
           }}
         />
       </span>

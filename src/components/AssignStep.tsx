@@ -15,6 +15,7 @@ type DragState = {
 
 type AssignStepProps = {
   symbol: string;
+  fractionDigits: number;
   items: Item[];
   people: Person[];
   selectedItemId: string | null;
@@ -53,6 +54,7 @@ function GripIcon() {
 
 export function AssignStep({
   symbol,
+  fractionDigits,
   items,
   people,
   selectedItemId,
@@ -139,6 +141,7 @@ export function AssignStep({
               item={item}
               people={people}
               symbol={symbol}
+              fractionDigits={fractionDigits}
               selected={item.id === selectedItemId}
               onSelect={onSelect}
               onShareMode={onShareMode}
@@ -158,6 +161,7 @@ export function AssignStep({
               item={item}
               people={people}
               symbol={symbol}
+              fractionDigits={fractionDigits}
               selected={item.id === selectedItemId}
               onSelect={onSelect}
               onShareMode={onShareMode}
@@ -196,10 +200,10 @@ export function AssignStep({
                 }}
               >
                 <span className="person-name">
-                  {person.name}
+                  <bdi dir="auto">{person.name}</bdi>
                   {index < 9 ? <span className="person-key"> {index + 1}</span> : null}
                 </span>
-                <strong>{formatMoney(row?.totalCents ?? 0, symbol || "$")}</strong>
+                <strong dir="ltr">{formatMoney(row?.totalCents ?? 0, symbol || "$", fractionDigits)}</strong>
               </button>
             );
           })}
@@ -228,6 +232,7 @@ function ItemCard({
   item,
   people,
   symbol,
+  fractionDigits,
   selected,
   onSelect,
   onShareMode,
@@ -238,6 +243,7 @@ function ItemCard({
   item: Item;
   people: Person[];
   symbol: string;
+  fractionDigits: number;
   selected: boolean;
   onSelect: (id: string | null) => void;
   onShareMode: (itemId: string, mode: "even" | "custom") => void;
@@ -286,10 +292,10 @@ function ItemCard({
           onClick={() => onSelect(selected ? null : item.id)}
         >
           <span>
-            {label}
-            {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+            <bdi className="item-name" dir="auto">{label}</bdi>
+            {item.quantity > 1 ? <span className="qty" dir="ltr">{` × ${item.quantity}`}</span> : ""}
           </span>
-          <strong>{formatMoney(lineTotalCents(item.quantity, item.priceCents), symbol || "$")}</strong>
+          <strong dir="ltr">{formatMoney(lineTotalCents(item.quantity, item.priceCents), symbol || "$", fractionDigits)}</strong>
         </button>
         {known.length > 0 && (
           <div className="chips">
@@ -299,8 +305,8 @@ function ItemCard({
               const fraction = shareLabel(assignment.weight, weightTotal);
               return (
                 <span key={person.id} className="chip">
-                  {person.name}
-                  {fraction ? ` ${fraction}` : ""} {formatMoney(shares[index] ?? 0, symbol || "$")}
+                  <bdi dir="auto">{person.name}</bdi>
+                  {fraction ? ` ${fraction}` : ""} <span dir="ltr">{formatMoney(shares[index] ?? 0, symbol || "$", fractionDigits)}</span>
                 </span>
               );
             })}
@@ -323,7 +329,7 @@ function ItemCard({
                   if (!person) return null;
                   return (
                     <label key={person.id}>
-                      <span>{person.name}</span>
+                      <span><bdi dir="auto">{person.name}</bdi></span>
                       <WholeNumberField
                         value={assignment.weight}
                         min={1}

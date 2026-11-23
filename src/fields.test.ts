@@ -32,6 +32,15 @@ describe("number drafts", () => {
   it("accepts a whole head count", () => {
     expect(integerDraftValue("4", 1, 99)).toBe(4);
   });
+
+  it("accepts Arabic digits and still rejects a decimal or a minus", () => {
+    expect(reviseIntegerDraft("", "٣٫٥", 2)).toBe("3.5");
+    expect(integerDraftValue("٣٫٥", 1, 99)).toBeNull();
+    expect(reviseIntegerDraft("2", "-١", 2)).toBe("-1");
+    expect(integerDraftValue("-١", 1, 99)).toBeNull();
+    expect(integerDraftValue("٢", 1, 99)).toBe(2);
+    expect(reviseIntegerDraft("1", "١-٣", 2)).toBe("1");
+  });
 });
 
 describe("live money", () => {
@@ -40,5 +49,7 @@ describe("live money", () => {
     expect(liveMoneyCents("4.")).toBe(400);
     expect(liveMoneyCents("-2")).toBeNull();
     expect(liveMoneyCents("(2.00)")).toBeNull();
+    expect(liveMoneyCents("١٢٫٥٠")).toBe(1250);
+    expect(liveMoneyCents("-٢")).toBeNull();
   });
 });

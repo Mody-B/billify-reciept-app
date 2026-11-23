@@ -29,6 +29,7 @@ function asItems(value: unknown): Item[] | null {
       priceCents: entry.priceCents,
       shareMode: entry.shareMode,
       assignments,
+      ...(entry.needsCheck === true ? { needsCheck: true } : {}),
     });
   }
   return items;

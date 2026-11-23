@@ -42,7 +42,12 @@ describe("readReceipt", () => {
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
     expect(init.headers.Authorization).toBe("Bearer present");
-    expect(JSON.parse(init.body).model).toBe("nvidia/nemotron-3.5-super-vl:free");
+    const body = JSON.parse(init.body);
+    expect(body.model).toBe("nvidia/nemotron-3.5-super-vl:free");
+    expect(body.messages[0].content).toContain("Do not translate");
+    expect(body.messages[0].content).toContain("المجموع");
+    expect(body.messages[0].content).toContain("flagged");
+    expect(body.messages[0].content).toContain("١٢٫٥٠");
     expect(url).not.toContain("openai.com");
     fetchSpy.mockRestore();
   });

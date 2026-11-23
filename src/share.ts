@@ -31,9 +31,11 @@ export function whoPaysWhatText(input: {
   symbol: string;
   lines: { label: string; cents: number }[];
   totalCents: number;
+  fractionDigits?: number;
 }): string {
-  const rows = input.lines.map((line) => `${line.label}  ${formatMoney(line.cents, input.symbol)}`);
-  rows.push(`Total  ${formatMoney(input.totalCents, input.symbol)}`);
+  const digits = input.fractionDigits ?? 2;
+  const rows = input.lines.map((line) => `${line.label}  ${formatMoney(line.cents, input.symbol, digits)}`);
+  rows.push(`Total  ${formatMoney(input.totalCents, input.symbol, digits)}`);
   return [`Splitit`, input.dateLabel, "", ...rows, ""].join("\n");
 }
 

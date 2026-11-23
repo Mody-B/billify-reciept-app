@@ -1,15 +1,23 @@
-export function formatMoney(cents: number, symbol: string): string {
+import { toMinorUnits } from "./numerals";
+
+export function formatMoney(cents: number, symbol: string, fractionDigits = 2): string {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(Math.trunc(cents));
-  const dollars = Math.floor(abs / 100);
-  const remainder = abs % 100;
-  return `${sign}${symbol}${dollars}.${String(remainder).padStart(2, "0")}`;
+  const digits = fractionDigits < 0 ? 0 : fractionDigits;
+  if (digits === 0) return `${sign}${symbol}${abs}`;
+  const scale = 10 ** digits;
+  const major = Math.floor(abs / scale);
+  const minor = abs % scale;
+  return `${sign}${symbol}${major}.${String(minor).padStart(digits, "0")}`;
 }
 
-export function formatCentsForInput(cents: number): string {
+export function formatCentsForInput(cents: number, fractionDigits = 2): string {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(Math.trunc(cents));
-  return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
+  const digits = fractionDigits < 0 ? 0 : fractionDigits;
+  if (digits === 0) return `${sign}${abs}`;
+  const scale = 10 ** digits;
+  return `${sign}${Math.floor(abs / scale)}.${String(abs % scale).padStart(digits, "0")}`;
 }
 
 /** Line amount in cents. `priceCents` is the unit price and stays that way. */
@@ -26,35 +34,17 @@ export function lineTotalCents(quantity: number, unitPriceCents: number): number
  * A leading minus or parentheses is rejected whole, so the sign is not stripped
  * off and the remaining digits are not saved as a positive amount.
  */
-export function liveMoneyCents(raw: string): number | null {
-  const trimmed = raw.trim();
+export function liveMoneyCents(raw: string, fractionDigits = 2): number | null {
+  const trimmed = raw.trim().replace(/^[−‐‒–—]/, "-");
   if (!trimmed) return 0;
-  if (trimmed.startsWith("-") || /^\(.*\)$/.test(trimmed)) return null;
-  const parsed = parseMoneyInput(trimmed);
+  if (trimmed.startsWith("-") || trimmed.endsWith("-") || /^\(.*\)$/.test(trimmed)) return null;
+  const parsed = parseMoneyInput(trimmed, fractionDigits);
   if (parsed == null || parsed < 0) return null;
   return parsed;
 }
 
-export function parseMoneyInput(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return 0;
-  const negative = /^\(.*\)$/.test(trimmed) || trimmed.startsWith("-");
-  let body = trimmed.replace(/[()]/g, "").replace(/-/g, "");
-  body = body.replace(/[^\d.,]/g, "");
-  if (!body) return null;
-
-  const lastComma = body.lastIndexOf(",");
-  const lastDot = body.lastIndexOf(".");
-  let normalized = body;
-  if (lastComma > lastDot) normalized = body.replace(/\./g, "").replace(",", ".");
-  else normalized = body.replace(/,/g, "");
-
-  if (normalized.endsWith(".")) normalized = normalized.slice(0, -1);
-  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
-  const value = Number(normalized);
-  if (!Number.isFinite(value)) return null;
-  const cents = Math.round(value * 100);
-  return negative ? -cents : cents;
+export function parseMoneyInput(raw: string, fractionDigits = 2): number | null {
+  return toMinorUnits(raw, fractionDigits);
 }
 
 export function shareLabel(weight: number, weightTotal: number): string | null {

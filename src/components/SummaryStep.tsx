@@ -6,6 +6,7 @@ import type { Item, Person } from "../types";
 
 type SummaryStepProps = {
   symbol: string;
+  fractionDigits: number;
   items: Item[];
   people: Person[];
   result: SplitResult;
@@ -16,8 +17,9 @@ type SummaryStepProps = {
   onReset: () => void;
 };
 
-export function SummaryStep({ symbol, items, result, evenShares, shareUrl, exportText, onBack, onReset }: SummaryStepProps) {
+export function SummaryStep({ symbol, fractionDigits, items, result, evenShares, shareUrl, exportText, onBack, onReset }: SummaryStepProps) {
   const mark = symbol || "$";
+  const money = (cents: number) => formatMoney(cents, mark, fractionDigits);
   const evenTotal = evenShares?.reduce((sum, share) => sum + share, 0) ?? 0;
   const even = evenShares != null && evenShares.length > 0;
   const [shareNote, setShareNote] = useState("");
@@ -37,12 +39,12 @@ export function SummaryStep({ symbol, items, result, evenShares, shareUrl, expor
           {evenShares.map((cents, index) => (
             <li key={index}>
               <span>{index + 1}</span>
-              <span>{formatMoney(cents, mark)}</span>
+              <span dir="ltr">{money(cents)}</span>
             </li>
           ))}
           <li className="line-total">
             <span>Total</span>
-            <span>{formatMoney(evenTotal, mark)}</span>
+            <span dir="ltr">{money(evenTotal)}</span>
           </li>
         </ul>
       ) : (
@@ -51,8 +53,8 @@ export function SummaryStep({ symbol, items, result, evenShares, shareUrl, expor
           return (
             <section key={row.personId} className="person-slip">
               <h3 className="person-tab is-static">
-                <span>{row.name || "Someone"}</span>
-                <strong>{formatMoney(row.totalCents, mark)}</strong>
+                <bdi className="item-name" dir="auto">{row.name || "Someone"}</bdi>
+                <strong dir="ltr">{money(row.totalCents)}</strong>
               </h3>
               {row.items.length === 0 && row.extras.length === 0 ? (
                 <p className="empty">Nothing assigned.</p>
@@ -65,23 +67,23 @@ export function SummaryStep({ symbol, items, result, evenShares, shareUrl, expor
                     return (
                       <li key={share.itemId}>
                         <span>
-                          {share.name || "Item"}
-                          {qty}
+                          <bdi className="item-name" dir="auto">{share.name || "Item"}</bdi>
+                          {qty ? <span dir="ltr">{qty}</span> : null}
                           {fraction ? <em> {fraction}</em> : null}
                         </span>
-                        <span>{formatMoney(share.amountCents, mark)}</span>
+                        <span dir="ltr">{money(share.amountCents)}</span>
                       </li>
                     );
                   })}
                   {row.extras.map((extra) => (
                     <li key={extra.extraId}>
-                      <span>{extra.label}</span>
-                      <span>{formatMoney(extra.amountCents, mark)}</span>
+                      <bdi className="item-name" dir="auto">{extra.label}</bdi>
+                      <span dir="ltr">{money(extra.amountCents)}</span>
                     </li>
                   ))}
                   <li className="line-total">
                     <span>Total</span>
-                    <span>{formatMoney(row.totalCents, mark)}</span>
+                    <span dir="ltr">{money(row.totalCents)}</span>
                   </li>
                 </ul>
               )}
@@ -94,23 +96,23 @@ export function SummaryStep({ symbol, items, result, evenShares, shareUrl, expor
       <div className="receipt-box">
         <div className="total-row">
           <span>People together</span>
-          <strong>{formatMoney(even ? evenTotal : result.peopleTotalCents, mark)}</strong>
+          <strong dir="ltr">{money(even ? evenTotal : result.peopleTotalCents)}</strong>
         </div>
         {!even && result.unassignedItemsCents !== 0 && (
           <div className="total-row">
             <span>Still unassigned</span>
-            <strong>{formatMoney(result.unassignedItemsCents, mark)}</strong>
+            <strong dir="ltr">{money(result.unassignedItemsCents)}</strong>
           </div>
         )}
         {!even && result.unallocatedExtrasCents !== 0 && (
           <div className="total-row">
             <span>Extras not split yet</span>
-            <strong>{formatMoney(result.unallocatedExtrasCents, mark)}</strong>
+            <strong dir="ltr">{money(result.unallocatedExtrasCents)}</strong>
           </div>
         )}
         <div className="total-row grand">
           <span>Bill total</span>
-          <strong data-testid="grand-total">{formatMoney(result.billTotalCents, mark)}</strong>
+          <strong data-testid="grand-total" dir="ltr">{money(result.billTotalCents)}</strong>
         </div>
         {covered ? (
           <>
