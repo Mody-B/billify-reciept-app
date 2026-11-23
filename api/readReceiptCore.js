@@ -12,7 +12,9 @@ const INSTRUCTIONS = `You read a photo of a restaurant receipt and return only J
 }
 Rules:
 - quantity is a whole number. Default 1. A printed "2" or "2x" in front of a name is the quantity.
-- priceCents is the line total in cents, the amount to pay for that line. If both a unit price and an extended price are printed, use the extended price.
+- priceCents is the unit price in cents, the price of one item. The line total is quantity times priceCents.
+- If the receipt prints a unit price and an extended total, put the unit price in priceCents.
+- If it prints only an extended line total, divide that total by the quantity when it divides evenly. If it does not divide evenly, set quantity to 1 and priceCents to the printed line total.
 - Join a name that wraps onto the next line into one item.
 - Do not include the restaurant name, address, phone, date, server, table, thank-you, card brand, last four digits, approval code, or auth code.
 - Tax, VAT, GST, tip, gratuity, service charge, and fees are not items.

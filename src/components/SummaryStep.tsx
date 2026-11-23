@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { InstallPrompt } from "./InstallPrompt";
 import { formatMoney, shareLabel } from "../money";
 import type { SplitResult } from "../split/splitBill";
@@ -9,14 +10,17 @@ type SummaryStepProps = {
   people: Person[];
   result: SplitResult;
   evenShares: number[] | null;
+  shareUrl: string;
+  exportText: string;
   onBack: () => void;
   onReset: () => void;
 };
 
-export function SummaryStep({ symbol, items, result, evenShares, onBack, onReset }: SummaryStepProps) {
+export function SummaryStep({ symbol, items, result, evenShares, shareUrl, exportText, onBack, onReset }: SummaryStepProps) {
   const mark = symbol || "$";
   const evenTotal = evenShares?.reduce((sum, share) => sum + share, 0) ?? 0;
   const even = evenShares != null && evenShares.length > 0;
+  const [shareNote, setShareNote] = useState("");
   const covered = even
     ? evenTotal === result.billTotalCents
     : result.unassignedItemsCents === 0 && result.unallocatedExtrasCents === 0 && result.peopleTotalCents === result.billTotalCents;
@@ -121,6 +125,53 @@ export function SummaryStep({ symbol, items, result, evenShares, onBack, onReset
           </p>
         )}
       </div>
+
+      <div className="share-actions">
+        <button
+          type="button"
+          className="button secondary"
+          data-testid="copy-link"
+          onClick={() => {
+            const hash = new URL(shareUrl).hash;
+            if (hash) window.history.replaceState(null, "", hash);
+            const done = navigator.clipboard?.writeText(shareUrl).then(
+              () => "Link copied.",
+              () => "Copy this link.",
+            );
+            if (!done) {
+              setShareNote("Copy this link.");
+              return;
+            }
+            void done.then((note) => setShareNote(note));
+          }}
+        >
+          Copy link
+        </button>
+        <button
+          type="button"
+          className="button secondary"
+          data-testid="export-split"
+          onClick={() => {
+            const file = new Blob([exportText], { type: "text/plain" });
+            const url = URL.createObjectURL(file);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "splitit.txt";
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Export
+        </button>
+      </div>
+      {shareNote && (
+        <p className="even-note" role="status">
+          {shareNote}{" "}
+          {shareNote === "Copy this link." && (
+            <input className="share-url" readOnly value={shareUrl} data-testid="share-url" onFocus={(event) => event.currentTarget.select()} />
+          )}
+        </p>
+      )}
 
       <div className="step-actions">
         <button type="button" className="button" onClick={onReset}>

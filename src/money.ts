@@ -12,6 +12,29 @@ export function formatCentsForInput(cents: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
+/** Line amount in cents. `priceCents` is the unit price and stays that way. */
+export function lineTotalCents(quantity: number, unitPriceCents: number): number {
+  if (!Number.isFinite(quantity) || !Number.isFinite(unitPriceCents)) return 0;
+  const count = Math.trunc(quantity);
+  const unit = Math.trunc(unitPriceCents);
+  if (count <= 0) return 0;
+  return count * unit;
+}
+
+/**
+ * Cents to apply while a money field is being typed.
+ * A leading minus or parentheses is rejected whole, so the sign is not stripped
+ * off and the remaining digits are not saved as a positive amount.
+ */
+export function liveMoneyCents(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+  if (trimmed.startsWith("-") || /^\(.*\)$/.test(trimmed)) return null;
+  const parsed = parseMoneyInput(trimmed);
+  if (parsed == null || parsed < 0) return null;
+  return parsed;
+}
+
 export function parseMoneyInput(raw: string): number | null {
   const trimmed = raw.trim();
   if (!trimmed) return 0;

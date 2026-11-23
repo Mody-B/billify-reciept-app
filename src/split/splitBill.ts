@@ -26,7 +26,10 @@ export type SplitAssignment = {
 export type SplitItem = {
   id: string;
   name: string;
+  /** Unit price. The line total is quantity × priceCents. */
   priceCents: number;
+  /** Defaults to 1 when omitted. */
+  quantity?: number;
   assignments: readonly SplitAssignment[];
 };
 
@@ -182,7 +185,8 @@ export function splitBill(input: SplitInput): SplitResult {
   let subtotalCents = 0;
 
   for (const item of input.items) {
-    const priceCents = asCents(item.priceCents);
+    const quantity = item.quantity == null ? 1 : Math.trunc(item.quantity);
+    const priceCents = quantity > 0 ? asCents(item.priceCents) * quantity : 0;
     subtotalCents += priceCents;
     const assignments = mergeAssignments(item.assignments, knownIds);
 

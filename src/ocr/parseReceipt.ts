@@ -232,6 +232,16 @@ function parseLine(words: readonly OcrWord[]): PreparedLine | null {
   if (kind === "skip") return null;
 
   let cents = chosen.cents;
+  if (quantity > 1 && cents > 0) {
+    const earlier = priced.length >= 2 ? priced[priced.length - 2].cents : null;
+    if (earlier != null && earlier > 0 && earlier * quantity === cents) {
+      cents = earlier;
+    } else if (priced.length === 1 && cents % quantity === 0) {
+      cents = cents / quantity;
+    } else if (priced.length >= 2) {
+      quantity = 1;
+    }
+  }
   if (kind === "other" && cents > 0 && /discount|coupon|promo/i.test(name)) cents = -cents;
 
   return { kind, name, quantity, cents, symbol: chosen.symbol };

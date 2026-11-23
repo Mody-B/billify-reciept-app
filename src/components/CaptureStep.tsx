@@ -22,6 +22,10 @@ export function CaptureStep({ onPick, onManual }: CaptureStepProps) {
         <button type="button" className="text-button" data-testid="capture-manual" onClick={onManual}>
           Type the items instead
         </button>
+        <p className="legal-links">
+          <a href={`${import.meta.env.BASE_URL}privacy`}>Privacy</a>
+          <a href={`${import.meta.env.BASE_URL}terms`}>Terms</a>
+        </p>
         <input
           id="camera-input"
           className="file-input"

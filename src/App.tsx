@@ -1,36 +1,111 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { billHasWork, emptyBill, serializeBill, shouldWarnOnLeave, type BillSnapshot } from "./billSnapshot";
 import { CaptureStep } from "./components/CaptureStep";
 import { ReviewStep } from "./components/ReviewStep";
 import { PeopleStep } from "./components/PeopleStep";
 import { AssignStep } from "./components/AssignStep";
+import { LegalPage } from "./components/LegalPage";
 import { SummaryStep } from "./components/SummaryStep";
 import { currencyFromMark, currencySymbol, DEFAULT_CURRENCY } from "./currency";
+import { clearDraft, loadDraft, saveDraft } from "./draft";
 import { newId } from "./id";
+import { legalPage } from "./legalPath";
 import { friendlyReadError, recognizeReceipt, shrinkImage, type Recognition } from "./ocr/recognize";
+import { decodeShare, encodeShare, shareTokenFromHash, whoPaysWhatText } from "./share";
+import { slipStamp } from "./slipDate";
 import { splitBill, splitEvenly } from "./split/splitBill";
 import { PERSON_COLORS, type Extra, type Item, type Person, type StepId } from "./types";
+
+function openingBill(): { bill: BillSnapshot; shared: string | null } {
+  const blank = emptyBill(DEFAULT_CURRENCY);
+  if (typeof window === "undefined") return { bill: blank, shared: null };
+  const token = shareTokenFromHash(window.location.hash);
+  if (token) {
+    const shared = decodeShare(token);
+    if (shared) {
+      const bill = { ...shared, step: "summary" as StepId };
+      return { bill, shared: serializeBill(bill) };
+    }
+  }
+  return { bill: loadDraft() ?? blank, shared: null };
+}
 
 function blankItem(): Item {
   return { id: newId(), name: "", quantity: 1, priceCents: 0, assignments: [], shareMode: "even" };
 }
 
 export default function App() {
-  const [step, setStep] = useState<StepId>("capture");
-  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
-  const [items, setItems] = useState<Item[]>([]);
-  const [taxCents, setTaxCents] = useState(0);
-  const [tipCents, setTipCents] = useState(0);
-  const [serviceCents, setServiceCents] = useState(0);
-  const [otherExtras, setOtherExtras] = useState<Extra[]>([]);
-  const [detectedTotalCents, setDetectedTotalCents] = useState<number | null>(null);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [evenCount, setEvenCount] = useState<number | null>(null);
-  const [splitMode, setSplitMode] = useState<"even" | "items" | null>(null);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const opened = useRef(openingBill());
+  const sharedSnapshot = useRef(opened.current.shared);
+  const [step, setStep] = useState<StepId>(opened.current.bill.step);
+  const [currency, setCurrency] = useState(opened.current.bill.currency);
+  const [items, setItems] = useState<Item[]>(opened.current.bill.items);
+  const [taxCents, setTaxCents] = useState(opened.current.bill.taxCents);
+  const [tipCents, setTipCents] = useState(opened.current.bill.tipCents);
+  const [serviceCents, setServiceCents] = useState(opened.current.bill.serviceCents);
+  const [otherExtras, setOtherExtras] = useState<Extra[]>(opened.current.bill.otherExtras);
+  const [detectedTotalCents, setDetectedTotalCents] = useState<number | null>(opened.current.bill.detectedTotalCents);
+  const [people, setPeople] = useState<Person[]>(opened.current.bill.people);
+  const [evenCount, setEvenCount] = useState<number | null>(opened.current.bill.evenCount);
+  const [splitMode, setSplitMode] = useState<"even" | "items" | null>(opened.current.bill.splitMode);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(opened.current.bill.selectedItemId);
+  const [legal, setLegal] = useState(() =>
+    typeof window === "undefined" ? null : legalPage(window.location.pathname, import.meta.env.BASE_URL),
+  );
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
   const [readError, setReadError] = useState<string | null>(null);
   const requestRef = useRef(0);
+  const bill = useMemo<BillSnapshot>(
+    () => ({
+      step,
+      currency,
+      items,
+      taxCents,
+      tipCents,
+      serviceCents,
+      otherExtras,
+      detectedTotalCents,
+      people,
+      evenCount,
+      splitMode,
+      selectedItemId,
+    }),
+    [step, currency, items, taxCents, tipCents, serviceCents, otherExtras, detectedTotalCents, people, evenCount, splitMode, selectedItemId],
+  );
+  const billJson = serializeBill(bill);
+  const savedRef = useRef(serializeBill(opened.current.bill));
+
+  useEffect(() => {
+    const syncLegal = () => setLegal(legalPage(window.location.pathname, import.meta.env.BASE_URL));
+    window.addEventListener("popstate", syncLegal);
+    return () => window.removeEventListener("popstate", syncLegal);
+  }, []);
+
+  useEffect(() => {
+    const snapshot = billJson;
+    const handle = window.setTimeout(() => {
+      if (sharedSnapshot.current && snapshot === sharedSnapshot.current) return;
+      if (!billHasWork(bill)) {
+        clearDraft();
+        savedRef.current = snapshot;
+        return;
+      }
+      saveDraft(bill);
+      savedRef.current = snapshot;
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [bill, billJson]);
+
+  useEffect(() => {
+    const onLeave = (event: BeforeUnloadEvent) => {
+      if (!shouldWarnOnLeave(billJson, savedRef.current, billHasWork(bill))) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [bill, billJson]);
 
   const extras = useMemo(
     () =>
@@ -55,6 +130,7 @@ export default function App() {
           id: item.id,
           name: item.name.trim() || "Untitled item",
           priceCents: item.priceCents,
+          quantity: item.quantity,
           assignments: item.assignments,
         })),
         extras,
@@ -63,13 +139,26 @@ export default function App() {
   );
 
   const mark = currencySymbol(currency);
-  const slipDate = useMemo(() => {
-    const now = new Date();
-    const label = now
-      .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-      .toUpperCase();
-    return { iso: now.toISOString().slice(0, 10), label };
-  }, []);
+  const slipDate = useMemo(() => slipStamp(new Date()), []);
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const token = encodeShare({ ...bill, step: "summary" });
+    const url = new URL(window.location.href);
+    url.hash = `s=${token}`;
+    return url.toString();
+  }, [bill]);
+  const exportText = useMemo(() => {
+    const shares =
+      splitMode === "even" && evenCount != null
+        ? splitEvenly(result.billTotalCents, evenCount).map((cents, index) => ({ label: String(index + 1), cents }))
+        : result.people.map((person) => ({ label: person.name || "Someone", cents: person.totalCents }));
+    return whoPaysWhatText({
+      dateLabel: slipDate.label,
+      symbol: mark,
+      lines: shares,
+      totalCents: result.billTotalCents,
+    });
+  }, [splitMode, evenCount, result, slipDate.label, mark]);
 
   function rememberPhoto(file: File) {
     const url = URL.createObjectURL(file);
@@ -175,14 +264,21 @@ export default function App() {
       if (current) URL.revokeObjectURL(current);
       return null;
     });
+    const blank = emptyBill(DEFAULT_CURRENCY);
+    clearDraft();
+    savedRef.current = serializeBill(blank);
+    sharedSnapshot.current = null;
   }
 
   function addPerson(name: string) {
+    const trimmed = name.trim();
+    if (people.some((person) => person.name.trim().toLowerCase() === trimmed.toLowerCase())) return false;
     setPeople((current) => {
       const used = new Set(current.map((person) => person.color));
       const color = PERSON_COLORS.find((entry) => !used.has(entry)) ?? PERSON_COLORS[current.length % PERSON_COLORS.length];
       return [...current, { id: newId(), name, color }];
     });
+    return true;
   }
 
   function removePerson(id: string) {
@@ -207,9 +303,12 @@ export default function App() {
         </time>
       </p>
       <main id="main">
-        {step === "capture" && <CaptureStep onPick={(file) => void readFile(file)} onManual={startBlank} />}
+        {legal ? (
+          <LegalPage kind={legal} homeHref={import.meta.env.BASE_URL || "/"} />
+        ) : null}
+        {!legal && step === "capture" && <CaptureStep onPick={(file) => void readFile(file)} onManual={startBlank} />}
 
-        {step === "review" && (
+        {!legal && step === "review" && (
           <ReviewStep
             symbol={mark}
             currency={currency}
@@ -249,7 +348,7 @@ export default function App() {
           />
         )}
 
-        {step === "people" && (
+        {!legal && step === "people" && (
           <PeopleStep
             people={people}
             mode={splitMode}
@@ -273,7 +372,7 @@ export default function App() {
           />
         )}
 
-        {step === "assign" && (
+        {!legal && step === "assign" && (
           <AssignStep
             symbol={mark}
             items={items}
@@ -344,13 +443,15 @@ export default function App() {
           />
         )}
 
-        {step === "summary" && (
+        {!legal && step === "summary" && (
           <SummaryStep
             symbol={mark}
             items={items}
             people={people}
             result={result}
             evenShares={evenCount == null ? null : splitEvenly(result.billTotalCents, evenCount)}
+            shareUrl={shareUrl}
+            exportText={exportText}
             onBack={() => setStep(splitMode === "even" ? "people" : "assign")}
             onReset={reset}
           />

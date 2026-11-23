@@ -36,18 +36,18 @@ describe("parseReceipt", () => {
     const parsed = parseReceipt(words);
     expect(parsed.items).toEqual([
       { name: "Burger", quantity: 1, priceCents: 1450 },
-      { name: "Fries", quantity: 2, priceCents: 700 },
-      { name: "Soda", quantity: 2, priceCents: 300 },
+      { name: "Fries", quantity: 2, priceCents: 350 },
+      { name: "Soda", quantity: 2, priceCents: 150 },
     ]);
     expect(parsed.subtotalCents).toBe(2450);
     expect(parsed.taxCents).toBe(200);
     expect(parsed.serviceCents).toBe(300);
     expect(parsed.tipCents).toBe(500);
     expect(parsed.totalCents).toBe(3450);
-    expect(parsed.items.reduce((sum, item) => sum + item.priceCents, 0) + 200 + 300 + 500).toBe(3450);
+    expect(parsed.items.reduce((sum, item) => sum + item.quantity * item.priceCents, 0) + 200 + 300 + 500).toBe(3450);
   });
 
-  it("uses the extended price when a line has quantity, unit price, and total", () => {
+  it("keeps the unit price when a line also prints the extended total", () => {
     const words = [
       word("Nachos", 20, 0, 70),
       word("2", 220, 0, 16),
@@ -55,7 +55,7 @@ describe("parseReceipt", () => {
       word("3.50", 280, 0, 40),
       word("7.00", 760, 0, 50),
     ];
-    expect(parseReceipt(words).items).toEqual([{ name: "Nachos", quantity: 2, priceCents: 700 }]);
+    expect(parseReceipt(words).items).toEqual([{ name: "Nachos", quantity: 2, priceCents: 350 }]);
   });
 
   it("treats discounts as negative extras and comma decimals as cents", () => {
@@ -104,9 +104,9 @@ QTY 3 Wings 12.00
 2x Fries 7.00`);
     expect(parsed.items).toEqual([
       { name: "GRILLED CHICKEN SANDWICH", quantity: 1, priceCents: 1450 },
-      { name: "ICED TEA", quantity: 2, priceCents: 600 },
-      { name: "Wings", quantity: 3, priceCents: 1200 },
-      { name: "Fries", quantity: 2, priceCents: 700 },
+      { name: "ICED TEA", quantity: 2, priceCents: 300 },
+      { name: "Wings", quantity: 3, priceCents: 400 },
+      { name: "Fries", quantity: 2, priceCents: 350 },
     ]);
   });
 

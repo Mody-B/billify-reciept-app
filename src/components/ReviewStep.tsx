@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { CurrencyPicker } from "./CurrencyPicker";
 import { newId } from "../id";
-import { formatMoney } from "../money";
+import { formatMoney, lineTotalCents } from "../money";
+import { WholeNumberField } from "./WholeNumberField";
 import type { Extra, Item } from "../types";
 import { MoneyField } from "./MoneyField";
 import { ReadProgress } from "./ReadProgress";
@@ -35,7 +36,7 @@ type ReviewStepProps = {
 export function ReviewStep(props: ReviewStepProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const mark = props.symbol || "$";
-  const subtotal = props.items.reduce((sum, item) => sum + item.priceCents, 0);
+  const subtotal = props.items.reduce((sum, item) => sum + lineTotalCents(item.quantity, item.priceCents), 0);
   const extras =
     props.taxCents +
     props.tipCents +
@@ -81,25 +82,26 @@ export function ReviewStep(props: ReviewStepProps) {
                     </label>
                     <label>
                       <span>Qty</span>
-                      <input
-                        inputMode="numeric"
-                        aria-label={`Item ${index + 1} quantity`}
+                      <WholeNumberField
                         value={item.quantity}
-                        onChange={(event) => {
-                          const quantity = Number(event.target.value);
-                          if (!Number.isFinite(quantity)) return;
-                          props.onItem(item.id, { quantity: Math.max(1, Math.min(99, Math.trunc(quantity))) });
-                        }}
+                        min={1}
+                        max={99}
+                        maxDigits={2}
+                        ariaLabel={`Item ${index + 1} quantity`}
+                        onCommit={(quantity) => props.onItem(item.id, { quantity })}
                       />
                     </label>
                     <MoneyField
                       id={`price-${item.id}`}
-                      label="Price"
+                      label="Each"
                       cents={item.priceCents}
                       symbol={props.symbol}
                       onChange={(priceCents) => props.onItem(item.id, { priceCents })}
                     />
                   </div>
+                  {item.quantity > 1 && (
+                    <p className="even-note">Line {formatMoney(lineTotalCents(item.quantity, item.priceCents), mark)}</p>
+                  )}
                   <div className="edit-actions">
                     <button
                       type="button"
@@ -126,7 +128,7 @@ export function ReviewStep(props: ReviewStepProps) {
                 >
                   <span className="qty">{item.quantity > 1 ? `${item.quantity}×` : ""}</span>
                   <span>{item.name || "Untitled item"}</span>
-                  <span className="price">{formatMoney(item.priceCents, mark)}</span>
+                  <span className="price">{formatMoney(lineTotalCents(item.quantity, item.priceCents), mark)}</span>
                 </button>
               ),
             )}

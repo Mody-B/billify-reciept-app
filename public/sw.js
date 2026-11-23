@@ -1,10 +1,10 @@
-const CACHE = "splitit-v1";
+const CACHE = "splitit-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE).then(async (cache) => {
       await Promise.all(
-        ["./","manifest.webmanifest", "favicon.svg", "icons/icon-192.png", "icons/icon-512.png"].map((url) =>
+        ["./","manifest.webmanifest", "favicon.ico", "favicon.svg", "icons/icon-192.png", "icons/icon-512.png"].map((url) =>
           cache.add(url).catch(() => undefined),
         ),
       );

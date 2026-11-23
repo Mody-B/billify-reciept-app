@@ -49,6 +49,45 @@ describe("splitEvenly", () => {
 });
 
 describe("splitBill", () => {
+  it("uses quantity times the unit price, including a shared pizza, tax, and an even split", () => {
+    const result = splitBill(
+      bill({
+        people: [alex, sam],
+        items: [
+          {
+            id: "pizza",
+            name: "Pizza",
+            quantity: 2,
+            priceCents: 1800,
+            assignments: [
+              { personId: "alex", weight: 1 },
+              { personId: "sam", weight: 1 },
+            ],
+          },
+          {
+            id: "salad",
+            name: "Salad",
+            quantity: 1,
+            priceCents: 1250,
+            assignments: [{ personId: "alex", weight: 1 }],
+          },
+        ],
+        extras: [
+          { id: "tax", label: "Tax", amountCents: 100 },
+          { id: "tip", label: "Tip", amountCents: 50 },
+        ],
+      }),
+    );
+
+    expect(result.subtotalCents).toBe(4850);
+    expect(result.billTotalCents).toBe(5000);
+    expect(result.people[0].items.map((item) => item.amountCents)).toEqual([1800, 1250]);
+    expect(result.people[1].items.map((item) => item.amountCents)).toEqual([1800]);
+    expect(result.peopleTotalCents).toBe(result.billTotalCents);
+    expect(splitEvenly(result.billTotalCents, 2)).toEqual([2500, 2500]);
+  });
+
+
   it("splits a shared item evenly and divides tax and extras by pre-tax share", () => {
     const result = splitBill(
       bill({

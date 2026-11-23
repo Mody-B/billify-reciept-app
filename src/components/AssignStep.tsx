@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { formatMoney, shareLabel } from "../money";
+import { formatMoney, lineTotalCents, shareLabel } from "../money";
+import { WholeNumberField } from "./WholeNumberField";
 import { allocateCents } from "../split/splitBill";
 import type { SplitResult } from "../split/splitBill";
 import type { Item, Person } from "../types";
@@ -246,7 +247,7 @@ function ItemCard({
 }) {
   const known = item.assignments.filter((assignment) => people.some((person) => person.id === assignment.personId));
   const shares = allocateCents(
-    item.priceCents,
+    lineTotalCents(item.quantity, item.priceCents),
     known.map((assignment) => assignment.weight),
   );
   const weightTotal = known.reduce((sum, assignment) => sum + assignment.weight, 0);
@@ -288,7 +289,7 @@ function ItemCard({
             {label}
             {item.quantity > 1 ? ` × ${item.quantity}` : ""}
           </span>
-          <strong>{formatMoney(item.priceCents, symbol || "$")}</strong>
+          <strong>{formatMoney(lineTotalCents(item.quantity, item.priceCents), symbol || "$")}</strong>
         </button>
         {known.length > 0 && (
           <div className="chips">
@@ -323,18 +324,13 @@ function ItemCard({
                   return (
                     <label key={person.id}>
                       <span>{person.name}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        inputMode="numeric"
-                        aria-label={`${person.name} shares of ${label}`}
+                      <WholeNumberField
                         value={assignment.weight}
-                        onChange={(event) => {
-                          const weight = Number(event.target.value);
-                          if (!Number.isFinite(weight) || weight <= 0) return;
-                          onWeight(item.id, person.id, weight);
-                        }}
+                        min={1}
+                        max={99}
+                        maxDigits={2}
+                        ariaLabel={`${person.name} shares of ${label}`}
+                        onCommit={(weight) => onWeight(item.id, person.id, weight)}
                       />
                     </label>
                   );

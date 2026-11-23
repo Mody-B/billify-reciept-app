@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { formatCentsForInput, parseMoneyInput } from "../money";
+import { formatCentsForInput, liveMoneyCents } from "../money";
 
 type MoneyFieldProps = {
   id: string;
@@ -33,16 +33,21 @@ export function MoneyField({ id, label, cents, symbol, onChange }: MoneyFieldPro
             setFocused(true);
             event.currentTarget.select();
           }}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setText(next);
+            const live = liveMoneyCents(next);
+            if (live != null) onChange(live);
+          }}
           onBlur={() => {
             setFocused(false);
-            const parsed = parseMoneyInput(text);
-            if (parsed == null) {
+            const live = liveMoneyCents(text);
+            if (live == null) {
               setText(formatCentsForInput(cents));
               return;
             }
-            onChange(parsed);
-            setText(formatCentsForInput(parsed));
+            onChange(live);
+            setText(formatCentsForInput(live));
           }}
         />
       </span>

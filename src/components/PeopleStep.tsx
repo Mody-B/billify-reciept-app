@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { integerDraftValue, reviseIntegerDraft } from "../fields";
 import type { Person } from "../types";
 
 type PeopleStepProps = {
@@ -6,7 +7,7 @@ type PeopleStepProps = {
   mode: "even" | "items" | null;
   evenCount: number | null;
   onMode: (mode: "even" | "items" | null) => void;
-  onAdd: (name: string) => void;
+  onAdd: (name: string) => boolean;
   onRemove: (id: string) => void;
   onEven: (count: number) => void;
   onBack: () => void;
@@ -15,15 +16,20 @@ type PeopleStepProps = {
 
 export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, onEven, onBack, onNext }: PeopleStepProps) {
   const [name, setName] = useState("");
+  const [nameNote, setNameNote] = useState("");
   const [evenText, setEvenText] = useState(evenCount == null ? "" : String(evenCount));
-  const typedCount = Number(evenText);
-  const evenReady = Number.isInteger(typedCount) && typedCount >= 1 && typedCount <= 99;
+  const typedCount = integerDraftValue(evenText, 1, 99);
+  const evenReady = typedCount != null;
 
   function add() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onAdd(trimmed.slice(0, 40));
+    if (!onAdd(trimmed.slice(0, 40))) {
+      setNameNote("That name is already on the bill.");
+      return;
+    }
     setName("");
+    setNameNote("");
   }
 
   return (
@@ -71,6 +77,11 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
               Add
             </button>
           </form>
+          {nameNote && (
+            <p className="flag" role="status">
+              {nameNote}
+            </p>
+          )}
 
           {people.length === 0 ? (
             <p className="empty">No one yet. Add at least one person.</p>
@@ -93,7 +104,7 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
           data-testid="even-split"
           onSubmit={(event) => {
             event.preventDefault();
-            if (evenReady) onEven(typedCount);
+              if (typedCount != null) onEven(typedCount);
           }}
         >
           <label>
@@ -104,7 +115,7 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
               min={1}
               max={99}
               value={evenText}
-              onChange={(event) => setEvenText(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+              onChange={(event) => setEvenText((current) => reviseIntegerDraft(current, event.target.value, 2))}
             />
           </label>
         </form>
@@ -123,7 +134,7 @@ export function PeopleStep({ people, mode, evenCount, onMode, onAdd, onRemove, o
             data-testid="continue"
             disabled={!evenReady}
             onClick={() => {
-              if (evenReady) onEven(typedCount);
+              if (typedCount != null) onEven(typedCount);
             }}
           >
             Next: who pays what
