@@ -1,3 +1,5 @@
+import { keepPrintedNames } from "./printedNames.js";
+
 const MODEL = "nvidia/nemotron-3.5-super-vl:free";
 
 const INSTRUCTIONS = `You read a photo of a restaurant receipt. The receipt may be Arabic, English, or mixed. Return only JSON with this shape:
@@ -5,7 +7,8 @@ const INSTRUCTIONS = `You read a photo of a restaurant receipt. The receipt may 
   "language": "ar",
   "currency": "USD",
   "currencySymbol": "$",
-  "items": [{ "name": "string", "quantity": 1, "unitPriceMinor": 0, "lineTotalMinor": 0, "flagged": false }],
+  "transcript": "2.00 مياه معدنية",
+  "items": [{ "name": "مياه معدنية", "printed": "مياه معدنية", "quantity": 1, "unitPriceMinor": 0, "lineTotalMinor": 0, "flagged": false }],
   "taxMinor": 0,
   "tipMinor": 0,
   "serviceMinor": 0,
@@ -16,7 +19,10 @@ const INSTRUCTIONS = `You read a photo of a restaurant receipt. The receipt may 
   "totalMinor": null
 }
 Rules:
-- Do not translate. Keep every item name and fee label in the original language and spelling.
+- Copy every item name exactly as printed. Do not translate, correct, or substitute a more food-like Arabic word.
+- transcript is the item lines copied from the paper, one line each. items[].name and items[].printed must be the exact words on that line, glyph for glyph.
+- These are different words. Never swap them: مياه معدنية is not مايونيز, فطيرة is not بطاطا, موز is not هوس, تفاحة is not تناقدة, حليب is not دلايل.
+- If a glyph is unclear, set flagged to true and keep only the marks you can see. Do not guess a different word.
 - language is "ar", "en", or "mixed".
 - currency is an ISO code. Recognize ل.س or ليرة سورية as SYP, ر.س as SAR, د.إ as AED, د.ك as KWD, د.أ or دينار as JOD, ج.م as EGP, ل.ل as LBP, د.ع as IQD, ر.ق as QAR, $ as USD, and € as EUR.
 - Money fields are integers in minor units. USD, SAR, AED, EGP, QAR, and EUR use 2 (cents). KWD and JOD use 3 (fils). SYP and LBP use 0. 125,000 ل.س is 125000, not 125. 1.250 JOD is 1250. ١٢٫٥٠ is 12.50, never 1250.
@@ -29,7 +35,7 @@ Rules:
 - الكمية, السعر, and العدد are column headers, not items.
 - خصم, discount, or coupon is a negative discountMinor, not an item.
 - التوصيل is deliveryMinor. A service charge is serviceMinor. A tip or الإكرامية is tipMinor.
-- If a line is unreadable, omit it. Do not invent items.`;
+- If a line is unreadable, omit it. Do not invent items or a likelier food name.`;
 
 function messageText(message) {
   const content = message?.content;
@@ -102,7 +108,7 @@ export async function readReceipt(image, env = process["env"]) {
           {
             role: "user",
             content: [
-              { type: "text", text: "Read this receipt." },
+              { type: "text", text: "Read this receipt. Copy every Arabic word exactly as printed. Do not substitute a different word." },
               { type: "image_url", image_url: { url: image } },
             ],
           },
@@ -123,7 +129,7 @@ export async function readReceipt(image, env = process["env"]) {
     const text = messageText(payload?.choices?.[0]?.message);
     const parsed = text ? parseModelJson(text) : null;
     if (!parsed || typeof parsed !== "object") return { status: 422, body: { error: "empty" } };
-    return { status: 200, body: parsed };
+    return { status: 200, body: keepPrintedNames(parsed) };
   } catch {
     return { status: 502, body: { error: "upstream" } };
   }

@@ -10,6 +10,7 @@ export type OcrWord = {
 import { currencyFromMark, currencySymbol, detectCurrency, fractionDigits } from "../currency";
 import { foldPersonName } from "../names";
 import { normalizeDigits, toMinorUnits } from "../numerals";
+import { keepPrintedNames } from "./printedNames";
 
 export type ParsedItem = {
   name: string;
@@ -521,7 +522,7 @@ function asName(value: unknown): string {
 /** Turn a vision model's JSON into a receipt, pulling tax and fees out of the item list. */
 export function receiptFromVision(value: unknown): ParsedReceipt | null {
   if (!value || typeof value !== "object") return null;
-  const record = value as Record<string, unknown>;
+  const record = keepPrintedNames(value as Record<string, unknown>);
   const parsed = emptyReceipt();
   const codeField = typeof record.currency === "string" ? record.currency.trim().toUpperCase() : "";
   const symbolField = typeof record.currencySymbol === "string" ? record.currencySymbol.trim() : "";

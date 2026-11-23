@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { lineTotalCents } from "../money";
 import { parseReceiptText, receiptFromVision } from "./parseReceipt";
 
+const PRINTED = `2.00 مياه معدنية
+5.00 فطيرة
+88.00 موز
+111.00 تفاحة
+222.00 حليب
+Subtotal 428.00`;
+
+const PRINTED_NAMES = ["مياه معدنية", "فطيرة", "موز", "تفاحة", "حليب"];
+const GUESSED_NAMES = ["مايونيز", "بطاطا", "هوس", "تناقدة", "دلايل"];
+
 const SYRIAN = `مطعم الياسمين
 بيتزا ٢ ٨٬٠٠٠ ١٦٬٠٠٠ ل.س
 سلطة ١ ٦٬٠٠٠ ٦٬٠٠٠
@@ -87,6 +97,38 @@ describe("Arabic receipts", () => {
     expect(parsed.items).toEqual([{ name: "بيتزا", quantity: 2, priceCents: 1800, flagged: true, lineTotalCents: 3000 }]);
     expect(parsed.items[0].quantity).toBe(2);
     expect(parsed.items[0].priceCents).not.toBe(1500);
+  });
+
+  it("keeps the printed Arabic names and rejects a guessed substitute", () => {
+    const parsed = parseReceiptText(PRINTED);
+    expect(parsed.items.map((item) => item.name)).toEqual(PRINTED_NAMES);
+    expect(parsed.subtotalCents).toBe(42800);
+    expect(itemSum(parsed.items)).toBe(42800);
+
+    const guessed = receiptFromVision({
+      transcript: PRINTED,
+      currency: "USD",
+      items: [
+        { name: "مايونيز", priceCents: 200 },
+        { name: "بطاطا", priceCents: 500 },
+        { name: "هوس", priceCents: 8800 },
+        { name: "تناقدة", priceCents: 11100 },
+        { name: "دلايل", priceCents: 22200 },
+      ],
+      subtotalCents: 42800,
+    });
+    expect(guessed?.items.map((item) => item.name)).toEqual(PRINTED_NAMES);
+    for (const substitute of GUESSED_NAMES) {
+      expect(guessed?.items.map((item) => item.name)).not.toContain(substitute);
+    }
+  });
+
+  it("flags an unclear glyph instead of keeping a guessed word", () => {
+    const parsed = receiptFromVision({
+      currency: "USD",
+      items: [{ name: "موز", printed: "مو", flagged: true, priceCents: 8800 }],
+    });
+    expect(parsed?.items).toEqual([{ name: "مو", quantity: 1, priceCents: 8800, flagged: true }]);
   });
 
   it("keeps an Arabic vision line in the original language", () => {
