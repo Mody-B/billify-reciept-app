@@ -9,7 +9,7 @@ describe("draft regression", () => {
     const bill = emptyBill(DEFAULT_CURRENCY);
     bill.step = "review";
     bill.items = [
-      { id: "pizza", name: "Pizza", quantity: 2, priceCents: 1800, assignments: [], shareMode: "even" },
+      { id: "pizza", name: "Pizza", quantity: 2, priceCents: 1800, assignments: [], shareMode: "even", nameUncertain: true },
       { id: "salad", name: "Salad", quantity: 1, priceCents: 1250, assignments: [], shareMode: "even" },
     ];
     const restored = parseDraft(serializeBill(bill));

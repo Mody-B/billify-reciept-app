@@ -7,8 +7,8 @@ const INSTRUCTIONS = `You read a photo of a restaurant receipt. The receipt may 
   "language": "ar",
   "currency": "USD",
   "currencySymbol": "$",
-  "transcript": "2.00 مياه معدنية",
-  "items": [{ "name": "مياه معدنية", "printed": "مياه معدنية", "quantity": 1, "unitPriceMinor": 0, "lineTotalMinor": 0, "flagged": false }],
+  "lines": ["2.00 مياه معدنية"],
+  "items": [{ "raw": "2.00 مياه معدنية", "name": "مياه معدنية", "quantity": 1, "unitPriceMinor": 0, "lineTotalMinor": 0, "flagged": false }],
   "taxMinor": 0,
   "tipMinor": 0,
   "serviceMinor": 0,
@@ -19,10 +19,12 @@ const INSTRUCTIONS = `You read a photo of a restaurant receipt. The receipt may 
   "totalMinor": null
 }
 Rules:
-- Copy every item name exactly as printed. Do not translate, correct, or substitute a more food-like Arabic word.
-- transcript is the item lines copied from the paper, one line each. items[].name and items[].printed must be the exact words on that line, glyph for glyph.
+- Transcribe Arabic glyphs exactly. No translation, no spelling correction, no food-word substitution.
+- lines and items[].raw are the raw line text, copied glyph for glyph before you interpret the line. items[].name, quantity, and the money fields are parsed separately.
+- The parsed Arabic name must be contained in that same line's raw text. If it is not, copy the words from raw into name. Never invent a different word.
+- Do not translate, correct, or substitute a more food-like Arabic word.
 - These are different words. Never swap them: مياه معدنية is not مايونيز, فطيرة is not بطاطا, موز is not هوس, تفاحة is not تناقدة, حليب is not دلايل.
-- If a glyph is unclear, set flagged to true and keep only the marks you can see. Do not guess a different word.
+- If a glyph is unclear, set flagged to true and keep the best literal reading in raw and name. Do not replace it with another word.
 - language is "ar", "en", or "mixed".
 - currency is an ISO code. Recognize ل.س or ليرة سورية as SYP, ر.س as SAR, د.إ as AED, د.ك as KWD, د.أ or دينار as JOD, ج.م as EGP, ل.ل as LBP, د.ع as IQD, ر.ق as QAR, $ as USD, and € as EUR.
 - Money fields are integers in minor units. USD, SAR, AED, EGP, QAR, and EUR use 2 (cents). KWD and JOD use 3 (fils). SYP and LBP use 0. 125,000 ل.س is 125000, not 125. 1.250 JOD is 1250. ١٢٫٥٠ is 12.50, never 1250.
@@ -108,7 +110,7 @@ export async function readReceipt(image, env = process["env"]) {
           {
             role: "user",
             content: [
-              { type: "text", text: "Read this receipt. Copy every Arabic word exactly as printed. Do not substitute a different word." },
+              { type: "text", text: "Read this receipt. Copy each line into raw first, glyph for glyph. Then fill the parsed fields from that raw text. Do not substitute a different Arabic word." },
               { type: "image_url", image_url: { url: image } },
             ],
           },

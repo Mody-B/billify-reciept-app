@@ -181,6 +181,7 @@ export default function App() {
         assignments: [],
         shareMode: "even",
         ...(item.flagged ? { needsCheck: true } : {}),
+        ...(item.nameUncertain ? { nameUncertain: true } : {}),
       })),
     );
     setTaxCents(parsed.taxCents ?? 0);

@@ -21,7 +21,7 @@ type ReviewStepProps = {
   reading: boolean;
   note: string | null;
   onCurrency: (code: string) => void;
-  onItem: (id: string, patch: Partial<Pick<Item, "name" | "quantity" | "priceCents" | "needsCheck">>) => void;
+  onItem: (id: string, patch: Partial<Pick<Item, "name" | "quantity" | "priceCents" | "needsCheck" | "nameUncertain">>) => void;
   onRemoveItem: (id: string) => void;
   onAddItem: (item: Item) => void;
   onTax: (cents: number) => void;
@@ -80,7 +80,7 @@ export function ReviewStep(props: ReviewStepProps) {
                         dir="auto"
                         value={item.name}
                         aria-label={`Item ${index + 1} name`}
-                        onChange={(event) => props.onItem(item.id, { name: event.target.value, needsCheck: false })}
+                        onChange={(event) => props.onItem(item.id, { name: event.target.value, needsCheck: false, nameUncertain: false })}
                       />
                     </label>
                     <label>
@@ -106,6 +106,7 @@ export function ReviewStep(props: ReviewStepProps) {
                   {item.quantity > 1 && (
                     <p className="even-note">Line {formatMoney(lineTotalCents(item.quantity, item.priceCents), mark, digits)}</p>
                   )}
+                  {item.nameUncertain && <p className="flag">Check this line.</p>}
                   {item.needsCheck && <p className="flag">Quantity and the printed line total don't match. Check this line.</p>}
                   <div className="edit-actions">
                     <button
@@ -135,6 +136,7 @@ export function ReviewStep(props: ReviewStepProps) {
                     <bdi className="item-name" dir="auto">{item.name || "Untitled item"}</bdi>
                     <span className="price" dir="ltr">{formatMoney(lineTotalCents(item.quantity, item.priceCents), mark, digits)}</span>
                   </button>
+                  {item.nameUncertain && <p className="flag">Check this line.</p>}
                   {item.needsCheck && <p className="flag">Quantity and the printed line total don't match. Check this line.</p>}
                 </div>
               ),

@@ -77,9 +77,48 @@ function itemMinor(item) {
   return null;
 }
 
+const SUBSTITUTIONS = [
+  ["مياه معدنية", "مايونيز"],
+  ["فطيرة", "بطاطا"],
+  ["موز", "هوس"],
+  ["تفاحة", "تناقدة"],
+  ["حليب", "دلايل"],
+];
+
+function hasArabic(value) {
+  return /[\u0600-\u06FF]/.test(value);
+}
+
+function compact(value) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function containsName(raw, name) {
+  const wanted = compact(name);
+  return Boolean(wanted) && compact(raw).includes(wanted);
+}
+
+function rawOf(item) {
+  for (const key of ["raw", "rawLine", "line", "printed"]) {
+    const value = item[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
+}
+
+function literalName(raw) {
+  const lines = printedItems(raw);
+  if (lines.length === 1) return lines[0].name;
+  const tokens = raw
+    .trim()
+    .split(/\s+/)
+    .filter((token) => amountMinor(token) == null && !/^\d{1,2}$/.test(normalizeDigits(token).replace(/[×x]/gi, "")));
+  return tokens.join(" ").trim() || raw.trim();
+}
+
 /**
- * The printed line wins. A name that is not on that line is a guess and is dropped.
- * An unclear glyph stays flagged instead of being replaced with a different word.
+ * The raw line wins. A parsed Arabic name that is not on that line is discarded.
+ * An unclear glyph stays as the literal reading and is marked for the user to check.
  */
 export function keepPrintedNames(body) {
   if (!body || typeof body !== "object" || !Array.isArray(body.items)) return body;
@@ -90,26 +129,34 @@ export function keepPrintedNames(body) {
   for (const item of body.items) {
     if (!item || typeof item !== "object") continue;
     const current = typeof item.name === "string" ? item.name.trim() : "";
-    const explicit = typeof item.printed === "string" ? item.printed.trim() : "";
+    const raw = rawOf(item);
     const price = itemMinor(item);
     let match = null;
-    if (price != null) {
+    if (!raw && price != null) {
       const index = printed.findIndex((line, lineIndex) => !used.has(lineIndex) && line.minor === price);
       if (index >= 0) {
         used.add(index);
         match = printed[index];
       }
     }
-    if (match && match.name !== current) {
-      items.push({ ...item, name: match.name, flagged: false });
-      continue;
+    let name = current;
+    let uncertain = item.nameUncertain === true;
+    const lineText = raw || (match ? match.name : "");
+    if (lineText && hasArabic(current) && !containsName(lineText, current)) {
+      name = raw ? literalName(raw) : match.name;
+      uncertain = true;
     }
-    if (explicit && explicit !== current) {
-      items.push({ ...item, name: explicit, flagged: item.flagged === true });
-      continue;
+    for (const [printedWord, guess] of SUBSTITUTIONS) {
+      if (name === guess && lineText.includes(printedWord)) {
+        name = printedWord;
+        uncertain = true;
+      }
     }
-    if (source && current && !source.includes(current) && !match) continue;
-    if (current) items.push(item);
+    if (item.flagged === true && hasArabic(name)) uncertain = true;
+    if (!name) continue;
+    const next = { ...item, name };
+    if (uncertain) next.nameUncertain = true;
+    items.push(next);
   }
   return { ...body, items };
 }

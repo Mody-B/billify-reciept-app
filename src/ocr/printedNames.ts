@@ -57,9 +57,48 @@ function itemMinor(item: Record<string, unknown>): number | null {
   return null;
 }
 
+const SUBSTITUTIONS = [
+  ["مياه معدنية", "مايونيز"],
+  ["فطيرة", "بطاطا"],
+  ["موز", "هوس"],
+  ["تفاحة", "تناقدة"],
+  ["حليب", "دلايل"],
+] as const;
+
+function hasArabic(value: string): boolean {
+  return /[\u0600-\u06FF]/.test(value);
+}
+
+function compact(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function containsName(raw: string, name: string): boolean {
+  const wanted = compact(name);
+  return Boolean(wanted) && compact(raw).includes(wanted);
+}
+
+function rawOf(item: Record<string, unknown>): string {
+  for (const key of ["raw", "rawLine", "line", "printed"]) {
+    const value = item[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
+}
+
+function literalName(raw: string): string {
+  const lines = printedItems(raw);
+  if (lines.length === 1) return lines[0].name;
+  const tokens = raw
+    .trim()
+    .split(/\s+/)
+    .filter((token) => amountMinor(token) == null && !/^\d{1,2}$/.test(normalizeDigits(token).replace(/[×x]/gi, "")));
+  return tokens.join(" ").trim() || raw.trim();
+}
+
 /**
- * The printed line wins. A name that is not on that line is a guess and is dropped.
- * An unclear glyph stays flagged instead of being replaced with a different word.
+ * The raw line wins. A parsed Arabic name that is not on that line is discarded.
+ * An unclear glyph stays as the literal reading and is marked for the user to check.
  */
 export function keepPrintedNames<T extends Record<string, unknown>>(body: T): T {
   if (!Array.isArray(body.items)) return body;
@@ -71,26 +110,34 @@ export function keepPrintedNames<T extends Record<string, unknown>>(body: T): T 
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Record<string, unknown>;
     const current = typeof item.name === "string" ? item.name.trim() : "";
-    const explicit = typeof item.printed === "string" ? item.printed.trim() : "";
+    const raw = rawOf(item);
     const price = itemMinor(item);
     let match: { name: string; minor: number } | null = null;
-    if (price != null) {
+    if (!raw && price != null) {
       const index = printed.findIndex((line, lineIndex) => !used.has(lineIndex) && line.minor === price);
       if (index >= 0) {
         used.add(index);
         match = printed[index];
       }
     }
-    if (match && match.name !== current) {
-      items.push({ ...item, name: match.name, flagged: false });
-      continue;
+    let name = current;
+    let uncertain = item.nameUncertain === true;
+    const lineText = raw || (match ? match.name : "");
+    if (lineText && hasArabic(current) && !containsName(lineText, current)) {
+      name = raw ? literalName(raw) : (match?.name ?? current);
+      uncertain = true;
     }
-    if (explicit && explicit !== current) {
-      items.push({ ...item, name: explicit, flagged: item.flagged === true });
-      continue;
+    for (const [printedWord, guess] of SUBSTITUTIONS) {
+      if (name === guess && lineText.includes(printedWord)) {
+        name = printedWord;
+        uncertain = true;
+      }
     }
-    if (source && current && !source.includes(current) && !match) continue;
-    if (current) items.push(item);
+    if (item.flagged === true && hasArabic(name)) uncertain = true;
+    if (!name) continue;
+    const next: Record<string, unknown> = { ...item, name };
+    if (uncertain) next.nameUncertain = true;
+    items.push(next);
   }
   return { ...body, items };
 }

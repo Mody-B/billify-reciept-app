@@ -40,6 +40,6 @@ export default defineConfig({
   plugins: [react(), receiptApi(), legalPages()],
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "api/**/*.test.js"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "api/**/*.test.js"],
   },
 });

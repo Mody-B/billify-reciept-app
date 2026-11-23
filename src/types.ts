@@ -12,6 +12,8 @@ export type Item = {
   shareMode: "even" | "custom";
   /** The printed quantity and line total did not agree. */
   needsCheck?: boolean;
+  /** The item name is a literal reading and should be checked. */
+  nameUncertain?: boolean;
 };
 
 export type Extra = {

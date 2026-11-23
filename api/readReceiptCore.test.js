@@ -45,6 +45,9 @@ describe("readReceipt", () => {
     const body = JSON.parse(init.body);
     expect(body.model).toBe("nvidia/nemotron-3.5-super-vl:free");
     expect(body.messages[0].content).toContain("Do not translate, correct, or substitute");
+    expect(body.messages[0].content).toContain("items[].raw");
+    expect(body.messages[0].content).toContain("parsed separately");
+    expect(body.messages[0].content).toContain("contained in that same line's raw text");
     expect(body.messages[0].content).toContain("مياه معدنية");
     expect(body.messages[0].content).toContain("مايونيز");
     expect(body.messages[0].content).toContain("If a glyph is unclear");
@@ -56,13 +59,7 @@ describe("readReceipt", () => {
     fetchSpy.mockRestore();
   });
 
-  it("rejects guessed Arabic names when the transcript has the printed words", async () => {
-    const transcript = `2.00 مياه معدنية
-5.00 فطيرة
-88.00 موز
-111.00 تفاحة
-222.00 حليب
-Subtotal 428.00`;
+  it("discards a parsed Arabic name that is not in that line's raw text", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
@@ -71,13 +68,12 @@ Subtotal 428.00`;
           {
             message: {
               content: JSON.stringify({
-                transcript,
                 items: [
-                  { name: "مايونيز", priceCents: 200 },
-                  { name: "بطاطا", priceCents: 500 },
-                  { name: "هوس", priceCents: 8800 },
-                  { name: "تناقدة", priceCents: 11100 },
-                  { name: "دلايل", priceCents: 22200 },
+                  { name: "مايونيز", raw: "2.00 مياه معدنية", priceCents: 200 },
+                  { name: "بطاطا", raw: "5.00 فطيرة", priceCents: 500 },
+                  { name: "هوس", raw: "88.00 موز", priceCents: 8800 },
+                  { name: "تناقدة", raw: "111.00 تفاحة", priceCents: 11100 },
+                  { name: "دلايل", raw: "222.00 حليب", priceCents: 22200 },
                 ],
                 subtotalCents: 42800,
               }),
@@ -89,9 +85,42 @@ Subtotal 428.00`;
     const result = await readReceipt("data:image/jpeg;base64,abc", { OPENROUTER_API_KEY: "present" });
     expect(result.status).toBe(200);
     expect(result.body.items.map((item) => item.name)).toEqual(["مياه معدنية", "فطيرة", "موز", "تفاحة", "حليب"]);
-    expect(JSON.stringify(result.body.items)).not.toContain("مايونيز");
-    expect(JSON.stringify(result.body.items)).not.toContain("بطاطا");
-    expect(JSON.stringify(result.body.items)).not.toContain("تناقدة");
+    expect(result.body.items.every((item) => item.nameUncertain === true)).toBe(true);
+    const names = JSON.stringify(result.body.items.map((item) => item.name));
+    expect(names).not.toContain("مايونيز");
+    expect(names).not.toContain("بطاطا");
+    expect(names).not.toContain("هوس");
+    expect(names).not.toContain("تناقدة");
+    expect(names).not.toContain("دلايل");
+    fetchSpy.mockRestore();
+  });
+
+  it("uses separate raw lines when the parsed names are different words", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                lines: ["2.00 مياه معدنية", "5.00 فطيرة", "88.00 موز", "111.00 تفاحة", "222.00 حليب"],
+                items: [
+                  { name: "مايونيز", priceCents: 200 },
+                  { name: "بطاطا", priceCents: 500 },
+                  { name: "هوس", priceCents: 8800 },
+                  { name: "تناقدة", priceCents: 11100 },
+                  { name: "دلايل", priceCents: 22200 },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const result = await readReceipt("data:image/jpeg;base64,abc", { OPENROUTER_API_KEY: "present" });
+    expect(result.body.items.map((item) => item.name)).toEqual(["مياه معدنية", "فطيرة", "موز", "تفاحة", "حليب"]);
+    expect(result.body.items.every((item) => item.nameUncertain === true)).toBe(true);
     fetchSpy.mockRestore();
   });
 });

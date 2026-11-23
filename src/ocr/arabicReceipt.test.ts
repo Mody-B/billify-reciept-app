@@ -106,18 +106,18 @@ describe("Arabic receipts", () => {
     expect(itemSum(parsed.items)).toBe(42800);
 
     const guessed = receiptFromVision({
-      transcript: PRINTED,
       currency: "USD",
       items: [
-        { name: "مايونيز", priceCents: 200 },
-        { name: "بطاطا", priceCents: 500 },
-        { name: "هوس", priceCents: 8800 },
-        { name: "تناقدة", priceCents: 11100 },
-        { name: "دلايل", priceCents: 22200 },
+        { name: "مايونيز", raw: "2.00 مياه معدنية", priceCents: 200 },
+        { name: "بطاطا", raw: "5.00 فطيرة", priceCents: 500 },
+        { name: "هوس", raw: "88.00 موز", priceCents: 8800 },
+        { name: "تناقدة", raw: "111.00 تفاحة", priceCents: 11100 },
+        { name: "دلايل", raw: "222.00 حليب", priceCents: 22200 },
       ],
       subtotalCents: 42800,
     });
     expect(guessed?.items.map((item) => item.name)).toEqual(PRINTED_NAMES);
+    expect(guessed?.items.every((item) => item.nameUncertain)).toBe(true);
     for (const substitute of GUESSED_NAMES) {
       expect(guessed?.items.map((item) => item.name)).not.toContain(substitute);
     }
@@ -126,9 +126,9 @@ describe("Arabic receipts", () => {
   it("flags an unclear glyph instead of keeping a guessed word", () => {
     const parsed = receiptFromVision({
       currency: "USD",
-      items: [{ name: "موز", printed: "مو", flagged: true, priceCents: 8800 }],
+      items: [{ name: "موز", raw: "مو", flagged: true, priceCents: 8800 }],
     });
-    expect(parsed?.items).toEqual([{ name: "مو", quantity: 1, priceCents: 8800, flagged: true }]);
+    expect(parsed?.items).toEqual([{ name: "مو", quantity: 1, priceCents: 8800, nameUncertain: true }]);
   });
 
   it("keeps an Arabic vision line in the original language", () => {

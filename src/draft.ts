@@ -30,6 +30,7 @@ function asItems(value: unknown): Item[] | null {
       shareMode: entry.shareMode,
       assignments,
       ...(entry.needsCheck === true ? { needsCheck: true } : {}),
+      ...(entry.nameUncertain === true ? { nameUncertain: true } : {}),
     });
   }
   return items;

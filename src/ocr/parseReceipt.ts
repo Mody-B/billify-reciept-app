@@ -19,6 +19,8 @@ export type ParsedItem = {
   priceCents: number;
   /** Set when the printed line total does not equal quantity × unit price. */
   flagged?: boolean;
+  /** The name is a literal reading the user should check. It was not replaced with another word. */
+  nameUncertain?: boolean;
   lineTotalCents?: number;
 };
 
@@ -192,6 +194,7 @@ type PreparedLine = {
   cents: number;
   symbol: string | null;
   flagged?: boolean;
+  nameUncertain?: boolean;
   lineCents?: number;
 };
 
@@ -345,6 +348,7 @@ function absorb(parsed: ParsedReceipt, prepared: PreparedLine) {
       name: prepared.name,
       quantity: prepared.quantity,
       priceCents: prepared.cents,
+      ...(prepared.nameUncertain ? { nameUncertain: true as const } : {}),
       ...(prepared.flagged
         ? { flagged: true as const, ...(prepared.lineCents != null ? { lineTotalCents: prepared.lineCents } : {}) }
         : {}),
@@ -543,7 +547,8 @@ export function receiptFromVision(value: unknown): ParsedReceipt | null {
     const unit = minorValue(item.unitPriceMinor ?? item.unitPriceCents ?? item.priceCents, digits);
     const lineTotal = minorValue(item.lineTotalMinor ?? item.lineTotalCents ?? item.lineTotal, digits);
     let cents = unit;
-    let flagged = item.flagged === true;
+    const nameUncertain = item.nameUncertain === true;
+    let flagged = item.flagged === true && !nameUncertain;
     if (cents == null && lineTotal != null) {
       if (quantity > 1 && lineTotal % quantity === 0) cents = lineTotal / quantity;
       else {
@@ -560,6 +565,7 @@ export function receiptFromVision(value: unknown): ParsedReceipt | null {
       cents,
       symbol: parsed.currencySymbol,
       flagged,
+      nameUncertain,
       lineCents: lineTotal ?? undefined,
     });
   }
